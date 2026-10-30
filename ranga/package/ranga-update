@@ -79,11 +79,12 @@ def update(build, package, assets):
         print(f"baixando {package}", flush=True)
         digest = download(assets[package], archive)
         sums = assets.get(f"{package}.sha256")
-        if sums:
-            with request(sums, "application/octet-stream") as response:
-                expected = response.read().decode().split()[0]
-            if expected != digest:
-                raise RuntimeError("o pacote baixado não confere com o sha256 da release")
+        if not sums:
+            raise RuntimeError(f"a release não tem {package}.sha256")
+        with request(sums, "application/octet-stream") as response:
+            expected = response.read().decode().split()[0]
+        if expected != digest:
+            raise RuntimeError("o pacote baixado não confere com o sha256 da release")
         subprocess.run(["tar", "-I", "zstd", "-xf", str(archive), "-C", tmp], check=True)
         script = next(Path(tmp).glob("ranga-*/install.sh"))
         subprocess.run([str(script)], check=True)

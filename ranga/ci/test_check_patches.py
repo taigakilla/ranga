@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+import urllib.error
 
 import check_patches
 
@@ -83,6 +84,44 @@ class CheckPatches(unittest.TestCase):
 """
         root = tree({"ranga/n.patch": new}, ["ranga/n.patch"])
         self.assertEqual(check_patches.check(os.path.join(root, "series"), root, "ranga/", fetch), [])
+
+
+
+    def test_retries_rate_limit_then_succeeds(self):
+        calls = []
+
+        def download():
+            calls.append(1)
+            if len(calls) < 3:
+                raise urllib.error.HTTPError("u", 429, "Too Many Requests", {"Retry-After": "1"}, None)
+            return "ok"
+
+        waits = []
+        self.assertEqual(check_patches.retrying(download, wait=waits.append), "ok")
+        self.assertEqual(waits, [1.0, 1.0])
+
+    def test_does_not_retry_not_found(self):
+        def download():
+            raise urllib.error.HTTPError("u", 404, "Not Found", {}, None)
+
+        with self.assertRaises(urllib.error.HTTPError):
+            check_patches.retrying(download, wait=lambda _: self.fail("esperou"))
+
+    def test_cache_keeps_files_and_misses(self):
+        calls = []
+
+        def fetch(path):
+            calls.append(path)
+            return None if path == "gone.cc" else f"conteudo de {path}"
+
+        with tempfile.TemporaryDirectory() as folder:
+            read = check_patches.cached(fetch, folder)
+            self.assertEqual(read("a/b.cc"), "conteudo de a/b.cc")
+            self.assertIsNone(read("gone.cc"))
+            again = check_patches.cached(fetch, folder)
+            self.assertEqual(again("a/b.cc"), "conteudo de a/b.cc")
+            self.assertIsNone(again("gone.cc"))
+        self.assertEqual(calls, ["a/b.cc", "gone.cc"])
 
 
 if __name__ == "__main__":

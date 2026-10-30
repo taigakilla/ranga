@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+export RANGA_BINARY="${RANGA_BINARY:-$root/build/src/out/Release/ranga}"
+[ -x "$RANGA_BINARY" ] || { echo "sem $RANGA_BINARY: compile antes" >&2; exit 1; }
+
+"$root/ranga/bin/ranga-sandbox" up >/dev/null
+"$root/ranga/bin/ranga-sandbox" eval 'chrome.storage.local.set({ sidebarCollapsed: false }).then(() => 1)' >/dev/null 2>&1 || true
+"$root/ranga/bin/ranga-sandbox" open "https://example.com/?e2e" >/dev/null
+"$root/ranga/bin/ranga-sandbox" key Escape
+node "$root/ranga/e2e/e2e.mjs" "$root"

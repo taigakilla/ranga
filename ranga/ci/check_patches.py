@@ -4,6 +4,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.request
 
@@ -68,17 +69,50 @@ def check(series_path, patches_dir, prefix, fetch):
     return failures
 
 
+def retrying(download, attempts=6, wait=time.sleep):
+    for attempt in range(attempts):
+        try:
+            return download()
+        except urllib.error.HTTPError as e:
+            if e.code not in (429, 500, 502, 503, 504) or attempt == attempts - 1:
+                raise
+            delay = e.headers.get("Retry-After") if e.headers else None
+            wait(float(delay) if delay and delay.isdigit() else 2 ** attempt * 5)
+
+
+def cached(fetch, folder):
+    def read(path):
+        cache = os.path.join(folder, path)
+        missing = cache + ".missing"
+        if os.path.exists(missing):
+            return None
+        if os.path.exists(cache):
+            with open(cache, encoding="utf-8") as f:
+                return f.read()
+        content = fetch(path)
+        os.makedirs(os.path.dirname(cache), exist_ok=True)
+        with open(missing if content is None else cache, "w", encoding="utf-8") as f:
+            f.write(content or "")
+        return content
+    return read
+
+
 def googlesource(version):
     def fetch(path):
         url = f"https://chromium.googlesource.com/chromium/src/+/refs/tags/{version}/{path}?format=TEXT"
-        try:
+
+        def download():
             with urllib.request.urlopen(url, timeout=60) as r:
                 return base64.b64decode(r.read()).decode("utf-8", errors="replace")
+
+        try:
+            return retrying(download)
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 return None
             raise
-    return fetch
+    folder = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")), "ranga", "chromium", version)
+    return cached(fetch, folder)
 
 
 def main(series_path, patches_dir, version_file):
