@@ -84,7 +84,7 @@ API privada chrome.rangaPrivate, só para a barra lateral do Ranga: ações das 
      "contexts": [
 --- a/chrome/common/extensions/api/_permission_features.json
 +++ b/chrome/common/extensions/api/_permission_features.json
-@@ -511,6 +511,11 @@
+@@ -511,6 +511,12 @@
    "identity.email": {
      "channel": "stable",
      "extension_types": ["extension", "platform_app"]
@@ -92,7 +92,8 @@ API privada chrome.rangaPrivate, só para a barra lateral do Ranga: ações das 
 +  "rangaPrivate": {
 +    "channel": "stable",
 +    "extension_types": ["extension"],
-+    "allowlist": ["2E76815F710A158780761A7A6262260BD23BC275"]
++    "allowlist": ["2E76815F710A158780761A7A6262260BD23BC275"],
++    "location": "component"
    },
    "indigoPrivate": {
      "channel": "stable",

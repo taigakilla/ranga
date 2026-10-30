@@ -1,0 +1,263 @@
+Barra recolhida: a página da barra fica acordada (captura visível, sem trava de tela) em vez de oculta e estrangulada, o atalho de recolher troca o modo no nativo, a tela cheia recolhe e restaura a barra no nativo, e o foco que cai na barra escondida volta pra página.
+
+--- a/chrome/browser/ui/extensions/extension_side_panel_coordinator_views.cc
++++ b/chrome/browser/ui/extensions/extension_side_panel_coordinator_views.cc
+@@ -30,6 +30,8 @@
+ #include "extensions/browser/extension_registry.h"
+ #include "extensions/common/extension.h"
+ #include "content/public/browser/web_contents.h"
++#include "base/functional/callback_helpers.h"
++#include "ui/gfx/geometry/size.h"
+ #include "third_party/skia/include/core/SkColor.h"
+ #include "ui/actions/actions.h"
+ #include "ui/views/controls/webview/webview.h"
+@@ -66,6 +68,11 @@
+ 
+     if (coordinator_->extension()->id() == "hncljkmljckjojdjincglklbdihcaeko") {
+       host->host_contents()->SetPageBaseBackgroundColor(SK_ColorTRANSPARENT);
++      // A collapsed sidebar shows none of its page, which would be hidden
++      // and throttled: its shortcuts and events would wait for the pointer.
++      sidebar_awake_ = host->host_contents()->IncrementCapturerCount(
++          gfx::Size(), /*stay_hidden=*/false, /*stay_awake=*/false,
++          /*is_activity=*/false);
+     }
+     auto extension_view =
+         std::make_unique<ExtensionViewViews>(coordinator_->profile(), host);
+@@ -147,6 +154,7 @@
+ 
+   // ExtensionViewViews::Observer:
+   void OnViewDestroying() override {
++    sidebar_awake_.RunAndReset();
+     scoped_view_observation_.Reset();
+     coordinator_->OnViewDestroyed();
+   }
+@@ -221,6 +229,7 @@
+   // the action item) and is reacquired on the destination window in DidInsert.
+   bool holds_action_item_reference_ = false;
+ 
++  base::ScopedClosureRunner sidebar_awake_;
+   base::ScopedObservation<ExtensionViewViews, ExtensionViewViews::Observer>
+       scoped_view_observation_{this};
+ 
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -180,6 +180,7 @@
+ #include "chrome/browser/ui/views/frame/multi_contents_view.h"
+ #include "chrome/browser/ui/views/frame/ranga_peek_view.h"
+ #include "chrome/browser/ui/views/frame/ranga_shortcuts.h"
++#include "chrome/browser/ui/views/frame/ranga_sidebar_mode.h"
+ #include "chrome/browser/ui/views/frame/ranga_load_snake.h"
+ #include "chrome/browser/ui/views/frame/ranga_spotlight_view.h"
+ #include "extensions/browser/event_router.h"
+@@ -3069,6 +3070,9 @@
+   }
+ 
+   UpdateZenModeState();
++  if (RangaHidesNativeChrome(browser_)) {
++    RangaSidebarFullscreenChanged(browser_, IsFullscreen());
++  }
+ }
+ 
+ ToolbarButtonProvider* BrowserView::toolbar_button_provider() {
+--- a/chrome/browser/ui/views/frame/ranga_sidebar_mode.h
++++ b/chrome/browser/ui/views/frame/ranga_sidebar_mode.h
+@@ -21,6 +21,14 @@
+ void RangaSetSidebarMode(BrowserWindowInterface* browser,
+                          RangaSidebarMode mode);
+ 
++// Moves the focus to the page when it is inside the sidebar.
++void RangaFocusPageIfInSidebar(BrowserWindowInterface* browser);
++
++// A docked sidebar collapses while the window is fullscreen and docks again
++// when it leaves fullscreen.
++void RangaSidebarFullscreenChanged(BrowserWindowInterface* browser,
++                                   bool fullscreen);
++
+ // How much of a collapsed sidebar stays inside the window: the page in it
+ // notices the pointer there and floats the sidebar back over the page.
+ inline constexpr int kRangaSidebarEdgeWidth = 6;
+--- a/chrome/browser/ui/views/frame/ranga_sidebar_mode.cc
++++ b/chrome/browser/ui/views/frame/ranga_sidebar_mode.cc
+@@ -11,8 +11,11 @@
+ #include <utility>
+ 
+ #include "base/containers/flat_map.h"
++#include "base/containers/flat_set.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/functional/bind.h"
++#include "base/memory/weak_ptr.h"
++#include "base/task/sequenced_task_runner.h"
+ #include "base/no_destructor.h"
+ #include "base/time/time.h"
+ #include "base/timer/timer.h"
+@@ -31,6 +34,8 @@
+ #include "ui/events/event_handler.h"
+ #include "ui/gfx/geometry/point_f.h"
+ #include "ui/gfx/geometry/size.h"
++#include "ui/views/controls/webview/webview.h"
++#include "ui/views/focus/focus_manager.h"
+ #include "ui/views/widget/widget.h"
+ 
+ namespace {
+@@ -106,6 +111,11 @@
+   base::RepeatingTimer timer_;
+ };
+ 
++base::flat_set<SessionID::id_type>& FullscreenCollapsed() {
++  static base::NoDestructor<base::flat_set<SessionID::id_type>> collapsed;
++  return *collapsed;
++}
++
+ base::flat_map<SessionID::id_type, std::unique_ptr<RevealSpring>>& Springs() {
+   static base::NoDestructor<
+       base::flat_map<SessionID::id_type, std::unique_ptr<RevealSpring>>>
+@@ -117,18 +127,48 @@
+ // managers with gaps leave the screen edge outside of it: a pointer pushed to
+ // the edge crosses the strip between two events. Reaching the window's edge
+ // on the sidebar's side, or leaving the window through it, floats the sidebar.
+-class EdgeWatcher : public ui::EventHandler, public aura::WindowObserver {
++class EdgeWatcher : public ui::EventHandler,
++                    public aura::WindowObserver,
++                    public views::FocusChangeListener {
+  public:
+-  EdgeWatcher(BrowserWindowInterface* browser, aura::Window* root)
+-      : browser_(browser), id_(browser->GetSessionID().id()), root_(root) {
++  EdgeWatcher(BrowserWindowInterface* browser,
++              aura::Window* root,
++              views::FocusManager* focus)
++      : browser_(browser),
++        id_(browser->GetSessionID().id()),
++        root_(root),
++        focus_(focus) {
+     root_->AddPreTargetHandler(this);
+     root_->AddObserver(this);
++    if (focus_) {
++      focus_->AddFocusChangeListener(this);
++    }
+   }
+   EdgeWatcher(const EdgeWatcher&) = delete;
+   EdgeWatcher& operator=(const EdgeWatcher&) = delete;
+   ~EdgeWatcher() override {
+     root_->RemovePreTargetHandler(this);
+     root_->RemoveObserver(this);
++    if (focus_) {
++      focus_->RemoveFocusChangeListener(this);
++    }
++  }
++
++  // A collapsed sidebar is out of sight but still focusable: when focus
++  // lands in it (a closing overlay hands focus to the next view), keys go
++  // nowhere, shortcuts included. The page takes the focus instead.
++  void OnDidChangeFocus(views::View* before, views::View* now) override {
++    if (now && RangaGetSidebarMode(browser_) == RangaSidebarMode::kCollapsed) {
++      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
++          FROM_HERE, base::BindOnce(&EdgeWatcher::FocusPage,
++                                    weak_factory_.GetWeakPtr()));
++    }
++  }
++
++  void FocusPage() {
++    if (RangaGetSidebarMode(browser_) == RangaSidebarMode::kCollapsed) {
++      RangaFocusPageIfInSidebar(browser_);
++    }
+   }
+ 
+   void OnMouseEvent(ui::MouseEvent* event) override {
+@@ -160,6 +200,8 @@
+   const raw_ptr<BrowserWindowInterface> browser_;
+   const SessionID::id_type id_;
+   const raw_ptr<aura::Window> root_;
++  raw_ptr<views::FocusManager> focus_;
++  base::WeakPtrFactory<EdgeWatcher> weak_factory_{this};
+ };
+ 
+ base::flat_map<SessionID::id_type, std::unique_ptr<EdgeWatcher>>& Watchers() {
+@@ -170,7 +212,12 @@
+ }
+ 
+ void EdgeWatcher::OnWindowDestroying(aura::Window* window) {
++  if (focus_) {
++    focus_->RemoveFocusChangeListener(this);
++    focus_ = nullptr;
++  }
+   Springs().erase(id_);
++  FullscreenCollapsed().erase(id_);
+   Watchers().erase(id_);
+ }
+ 
+@@ -181,7 +228,8 @@
+   }
+   aura::Window* root = view->GetWidget()->GetNativeWindow()->GetRootWindow();
+   if (root) {
+-    Watchers()[id] = std::make_unique<EdgeWatcher>(browser, root);
++    Watchers()[id] =
++        std::make_unique<EdgeWatcher>(browser, root, view->GetFocusManager());
+   }
+ }
+ 
+@@ -198,6 +246,32 @@
+   return std::nullopt;
+ }
+ 
++void RangaSidebarFullscreenChanged(BrowserWindowInterface* browser,
++                                   bool fullscreen) {
++  const SessionID::id_type id = browser->GetSessionID().id();
++  if (fullscreen) {
++    if (RangaGetSidebarMode(browser) == RangaSidebarMode::kDocked) {
++      FullscreenCollapsed().insert(id);
++      RangaSetSidebarMode(browser, RangaSidebarMode::kCollapsed);
++    }
++  } else if (FullscreenCollapsed().erase(id)) {
++    RangaSetSidebarMode(browser, RangaSidebarMode::kDocked);
++  }
++}
++
++void RangaFocusPageIfInSidebar(BrowserWindowInterface* browser) {
++  BrowserView* view = BrowserView::GetBrowserViewForBrowser(browser);
++  views::FocusManager* focus = view ? view->GetFocusManager() : nullptr;
++  views::View* focused = focus ? focus->GetFocusedView() : nullptr;
++  if (!focused || !view->side_panel() ||
++      !view->side_panel()->Contains(focused)) {
++    return;
++  }
++  if (views::WebView* contents = view->GetActiveContentsWebView()) {
++    contents->RequestFocus();
++  }
++}
++
+ RangaSidebarMode RangaGetSidebarMode(const BrowserWindowInterface* browser) {
+   auto it = Modes().find(browser->GetSessionID().id());
+   return it == Modes().end() ? RangaSidebarMode::kDocked : it->second;
+@@ -229,6 +303,9 @@
+     }
+     spring->SetTarget(target);
+     view->InvalidateLayout();
++    if (mode == RangaSidebarMode::kCollapsed) {
++      RangaFocusPageIfInSidebar(browser);
++    }
+   }
+   Profile* profile = browser->GetProfile()->GetOriginalProfile();
+   base::ListValue args;
+--- a/chrome/browser/ui/views/frame/ranga_shortcuts.cc
++++ b/chrome/browser/ui/views/frame/ranga_shortcuts.cc
+@@ -23,6 +23,7 @@
+ #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
+ #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
++#include "chrome/browser/ui/views/frame/ranga_sidebar_mode.h"
+ #include "chrome/browser/ui/views/frame/ranga_spotlight_view.h"
+ #include "content/public/browser/web_contents.h"
+ #include "extensions/browser/event_router.h"
+@@ -207,6 +208,12 @@
+       RunInLittle(browser, it->second);
+       return true;
+     }
++    if (it->second == "toggleSidebar") {
++      RangaSetSidebarMode(browser, RangaGetSidebarMode(browser) ==
++                                           RangaSidebarMode::kDocked
++                                       ? RangaSidebarMode::kCollapsed
++                                       : RangaSidebarMode::kDocked);
++    }
+     Profile* profile = browser->GetProfile()->GetOriginalProfile();
+     base::ListValue args;
+     args.Append(it->second);

@@ -59,3 +59,6 @@ ranga/ui/container-session-cookies.patch
 ranga/ui/spotlight-suggestions.patch
 ranga/ui/split-view.patch
 ranga/ui/escape-exits-fullscreen.patch
+ranga/ui/private-search-engine.patch
+ranga/ui/back-forward-hint.patch
+ranga/ui/collapsed-sidebar-keys.patch

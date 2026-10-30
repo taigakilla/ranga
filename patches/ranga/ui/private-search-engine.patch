@@ -1,0 +1,53 @@
+rangaPrivate.resolveInput aceita o mecanismo de busca a usar no lugar do padrão: a janela anônima do Ranga busca no mecanismo escolhido nas configurações.
+
+--- a/chrome/common/extensions/api/ranga_private.idl
++++ b/chrome/common/extensions/api/ranga_private.idl
+@@ -194,10 +194,13 @@
+ 
+     // Reads <code>text</code> as the window's address bar would: an
+     // address, a search, or a search with another engine when it starts
+-    // with the engine's keyword or has a !bang.
++    // with the engine's keyword or has a !bang. A search for the default
++    // engine goes to the engine with id <code>engineId</code> instead, when
++    // given.
+     static void resolveInput(
+         long windowId,
+         DOMString text,
++        optional DOMString engineId,
+         ResolvedInputCallback callback);
+ 
+     // Searches the default search engine suggests for <code>text</code>,
+--- a/chrome/browser/extensions/api/ranga_private/ranga_private_api.cc
++++ b/chrome/browser/extensions/api/ranga_private/ranga_private_api.cc
+@@ -17,6 +17,7 @@
+ #include "base/json/json_reader.h"
+ #include "base/functional/callback_helpers.h"
+ #include "base/strings/string_number_conversions.h"
++#include "base/strings/string_util.h"
+ #include "base/strings/utf_string_conversions.h"
+ #include "chrome/app/chrome_command_ids.h"
+ #include "chrome/browser/autocomplete/autocomplete_classifier_factory.h"
+@@ -481,6 +482,23 @@
+     input.engine = base::UTF16ToUTF8(engine->short_name());
+     input.query = base::UTF16ToUTF8(match.contents);
+   }
++  const TemplateURL* chosen =
++      service && params->engine_id && input.kind == "search"
++          ? service->GetTemplateURLForGUID(*params->engine_id)
++          : nullptr;
++  if (chosen && chosen != service->GetDefaultSearchProvider()) {
++    const std::u16string terms = base::CollapseWhitespace(
++        AutocompleteMatch::SanitizeString(base::UTF8ToUTF16(params->text)),
++        false);
++    const GURL url(chosen->url_ref().ReplaceSearchTerms(
++        TemplateURLRef::SearchTermsArgs(terms), service->search_terms_data()));
++    if (url.is_valid()) {
++      input.url = url.spec();
++      input.kind = "keyword";
++      input.engine = base::UTF16ToUTF8(chosen->short_name());
++      input.query = base::UTF16ToUTF8(terms);
++    }
++  }
+   return RespondNow(
+       ArgumentList(ranga_private::ResolveInput::Results::Create(input)));
+ }

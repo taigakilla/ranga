@@ -1,0 +1,63 @@
+Voltar e avançar (Alt+← / Alt+→, botões do mouse) mostram uma seta entrando pela borda da página, numa camada do Ranga.
+
+--- a/chrome/browser/ui/browser_commands.cc
++++ b/chrome/browser/ui/browser_commands.cc
+@@ -1116,6 +1116,10 @@
+             WindowOpenDisposition disposition) {
+   tabs::TabInterface* tab = GetTabAndRevertIfNecessary(browser, disposition);
+   CHECK(tab);
++  if (disposition == WindowOpenDisposition::CURRENT_TAB &&
++      tab->GetContents()->GetController().CanGoBack()) {
++    RangaShowNavigationHint(browser, /*back=*/true);
++  }
+   GoBack(tab->GetContents());
+ }
+ 
+@@ -1166,6 +1170,9 @@
+   if (CanGoForward(browser)) {
+     tabs::TabInterface* tab = GetTabAndRevertIfNecessary(browser, disposition);
+     CHECK(tab);
++    if (disposition == WindowOpenDisposition::CURRENT_TAB) {
++      RangaShowNavigationHint(browser, /*back=*/false);
++    }
+     tab->GetContents()->GetController().GoForward();
+   }
+ }
+--- a/chrome/browser/ui/views/frame/ranga_spotlight_view.h
++++ b/chrome/browser/ui/views/frame/ranga_spotlight_view.h
+@@ -61,6 +61,8 @@
+ 
+ bool RangaShowFind(BrowserWindowInterface* browser, int step);
+ 
++void RangaShowNavigationHint(BrowserWindowInterface* browser, bool back);
++
+ void RangaLayoutPanes(BrowserView* browser_view);
+ 
+ std::string RangaDragTab(BrowserWindowInterface* browser,
+--- a/chrome/browser/ui/views/frame/ranga_spotlight_view.cc
++++ b/chrome/browser/ui/views/frame/ranga_spotlight_view.cc
+@@ -178,6 +178,24 @@
+   return true;
+ }
+ 
++void RangaShowNavigationHint(BrowserWindowInterface* browser, bool back) {
++  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
++          "ranga-native-chrome") ||
++      browser->GetType() != BrowserWindowInterface::Type::TYPE_NORMAL) {
++    return;
++  }
++  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
++  if (!browser_view) {
++    return;
++  }
++  constexpr int kSize = 112;
++  const gfx::Rect area = RangaContentsArea(browser_view);
++  const gfx::Rect box(back ? area.x() : area.right() - kSize,
++                      area.y() + (area.height() - kSize) / 2, kSize, kSize);
++  RangaOverlayFor(browser_view, "nav.html")
++      ->Show(back ? "back" : "forward", box, /*focus=*/false);
++}
++
+ bool RangaShowFind(BrowserWindowInterface* browser, int step) {
+   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+           "ranga-native-chrome") ||
