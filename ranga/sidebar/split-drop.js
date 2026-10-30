@@ -6,11 +6,14 @@ export async function dropTab(windowId, tabId, zone, split, partner = null) {
     await chrome.windows.create({ tabId, focused: true });
     return;
   }
-  if (!split) {
-    const other = partner && await chrome.tabs.get(partner).catch(() => null);
+  const other = partner && await chrome.tabs.get(partner).catch(() => null);
+  if (!split || (other && other.splitViewId !== split)) {
+    if (!other || other.splitViewId > 0) return;
+    if (split) await chrome.tabs.unsplit(split);
     const tab = await chrome.tabs.get(tabId).catch(() => null);
-    if (!other || !tab || other.splitViewId > 0) return;
-    await chrome.tabs.move(tabId, { index: tab.index < other.index ? other.index : other.index + 1 });
+    const target = await chrome.tabs.get(other.id).catch(() => null);
+    if (!tab || !target) return;
+    await chrome.tabs.move(tabId, { index: tab.index < target.index ? target.index : target.index + 1 });
     await chrome.tabs.createSplit([other.id, tabId]);
   }
   await call("arrangeSplit", windowId, tabId, zone);

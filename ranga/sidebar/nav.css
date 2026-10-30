@@ -1,0 +1,25 @@
+html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; pointer-events: none; }
+body { display: grid; place-items: center; }
+.hint {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--k-shape-full);
+  background: var(--k-color-primary-container);
+  color: var(--k-color-on-primary-container);
+  box-shadow: 0 10px 28px -10px rgb(0 0 0 / 0.55);
+  opacity: 0;
+}
+.hint .k-icon { font-size: 30px; }
+body[data-side="back"] .hint { --from: -48px; }
+body[data-side="forward"] .hint { --from: 48px; }
+body.showing .hint { animation: hint 720ms linear both; }
+@keyframes hint {
+  0% { opacity: 0; transform: translateX(var(--from)) scale(0.6); }
+  30% { opacity: 1; transform: translateX(0) scale(1.06); }
+  42% { transform: translateX(0) scale(1); }
+  72% { opacity: 1; transform: translateX(0) scale(1); }
+  100% { opacity: 0; transform: translateX(calc(var(--from) * -0.25)) scale(0.9); }
+}
+.closed .hint { animation: none; opacity: 0; }

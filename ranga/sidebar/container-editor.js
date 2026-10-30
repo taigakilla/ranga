@@ -123,6 +123,7 @@ export function setupContainerEditor({ popover }) {
   popover.addEventListener("click", (e) => e.stopPropagation());
   document.addEventListener("click", close);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  popover.addEventListener("dismiss", close);
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local" || !changes.containers || popover.hidden) return;
     containers = loadContainers(changes.containers.newValue);

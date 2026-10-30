@@ -1,5 +1,5 @@
 import { mayHaveKeyword, suggestions, scoped } from "./spotlight-model.js";
-import { displayUrl } from "./settings-model.js";
+import { displayUrl, loadSettings } from "./settings-model.js";
 import { loadAliases, parseAlias, findAlias, aliasName, aliasUrl } from "./aliases-model.js";
 import { toNavigation } from "./tabs-model.js";
 import { glyph } from "./kurobe/icons.mjs";
@@ -24,6 +24,7 @@ let commands = [];
 let aliases = loadAliases(undefined);
 let alias = null;
 const suggestCache = new Map();
+let privateEngine = "";
 
 function faviconFor(url) {
   const src = new URL(chrome.runtime.getURL("/_favicon/"));
@@ -161,7 +162,7 @@ async function refresh() {
   if (query.value !== text) return;
   if (alias?.scope) return paint(scoped(alias.scope, text, data));
   if (alias) return paint(text.trim() ? [{ kind: "site", title: `Buscar no ${alias.name}: “${text.trim()}”`, url: aliasUrl(alias, text) }] : []);
-  const resolved = mayHaveKeyword(text) ? await resolve(text) : null;
+  const resolved = mayHaveKeyword(text) || privateEngine ? await resolve(text) : null;
   const base = { ...data, commands, resolved, hint: hintFor(text) };
   paint(suggestions(text, base));
   const pending = suggestionsFor(text);
@@ -171,7 +172,7 @@ async function refresh() {
 
 function resolve(text) {
   if (!rangaPrivate || !target) return Promise.resolve(null);
-  return call("resolveInput", target.windowId, text).catch(() => null);
+  return call("resolveInput", target.windowId, text, ...(privateEngine ? [privateEngine] : [])).catch(() => null);
 }
 
 async function createTab(url) {
@@ -241,7 +242,9 @@ async function open() {
   const empty = blank(target?.url);
   if (empty) mode = "current";
   commands = rangaPrivate && target ? await call("getEnabledCommands", target.windowId).catch(() => []) : [];
-  aliases = loadAliases((await chrome.storage.local.get("spotlightAliases")).spotlightAliases);
+  const stored = await chrome.storage.local.get(["spotlightAliases", "settings"]);
+  aliases = loadAliases(stored.spotlightAliases);
+  privateEngine = target?.incognito ? loadSettings(stored.settings).privateSearchEngine : "";
   suggestCache.clear();
   alias = null;
   if (/^https?:/.test(target?.url ?? "")) commands = [...commands, ...LOCAL_COMMANDS];

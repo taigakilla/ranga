@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULTS, loadSettings, displayUrl } from "./settings-model.js";
+import { DEFAULTS, loadSettings, displayUrl, mainLanguage, withMainLanguage } from "./settings-model.js";
 
 test("sem nada salvo, valem os padrões", () => {
   assert.deepEqual(loadSettings(undefined), DEFAULTS);
@@ -75,4 +75,13 @@ test("janela pequena pra links de outros apps: ligada por padrão, só aceita bo
   assert.equal(loadSettings(undefined).littleWindowLinks, true);
   assert.equal(loadSettings({ littleWindowLinks: false }).littleWindowLinks, false);
   assert.equal(loadSettings({ littleWindowLinks: 1 }).littleWindowLinks, true);
+});
+
+test("idioma principal vai pro topo dos idiomas preferidos, com a variante sem país logo depois", () => {
+  assert.equal(withMainLanguage("en-US,en,pt-BR", "pt-BR"), "pt-BR,pt,en-US,en");
+  assert.equal(withMainLanguage("pt-BR,pt,en-US,en", "en-US"), "en-US,en,pt-BR,pt");
+  assert.equal(withMainLanguage("", "pt-BR"), "pt-BR,pt");
+  assert.equal(mainLanguage("en-US,en,pt-BR"), "en-US");
+  assert.equal(mainLanguage("pt,en"), "pt-BR");
+  assert.equal(mainLanguage("es-ES,es"), "es-ES");
 });

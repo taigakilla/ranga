@@ -103,6 +103,7 @@ export function setupExtensions({ bar, button, popover, windowId }) {
   popover.addEventListener("click", (e) => e.stopPropagation());
   document.addEventListener("click", close);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  popover.addEventListener("dismiss", close);
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && changes.pinnedExtensions) refresh();
   });

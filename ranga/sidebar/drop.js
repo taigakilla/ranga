@@ -63,6 +63,9 @@ function show() {
 }
 
 window.addEventListener("hashchange", show);
+chrome.storage.session.onChanged.addListener((changes) => {
+  if (changes.tabDrag?.newValue && document.body.dataset.zone) paintPair(document.body.dataset.zone);
+});
 const themePort = chrome.runtime.connectNative("ranga.theme");
 themePort.onMessage.addListener((msg) => { if (msg.type === "theme") themeStyle.textContent = msg.css; });
 show();

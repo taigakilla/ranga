@@ -123,6 +123,10 @@
           <span class="text"><span class="k-type-panel">Busca</span><span class="k-type-caption hint">O que o spotlight usa quando o texto não é um endereço.</span></span>
           <div id="engines" class="engines"></div>
         </div>
+        <div class="setting engines-setting" id="private-engines-setting" hidden>
+          <span class="text"><span class="k-type-panel">Busca na janela anônima</span><span class="k-type-caption hint">O mecanismo do spotlight e do endereço nas janelas anônimas.</span></span>
+          <div id="private-engines" class="engines"></div>
+        </div>
         <label class="setting">
           <span class="text"><span class="k-type-panel">Sugestões enquanto digita</span><span class="k-type-caption hint">Pede sugestões ao mecanismo de busca. O que você digita vai pra ele.</span></span>
           <input class="k-switch" type="checkbox" data-pref="search.suggest_enabled">
@@ -276,6 +280,13 @@
           <span class="text"><span class="k-type-panel">Oferecer tradução</span><span class="k-type-caption hint">Quando a página está num idioma que você não lê.</span></span>
           <input class="k-switch" type="checkbox" data-pref="translate.enabled">
         </label>
+        <div class="setting">
+          <span class="text"><span class="k-type-panel">Idioma principal</span><span class="k-type-caption hint">O idioma que os sites recebem: decide vírgula ou ponto nos números, o formato de datas e de moeda.</span></span>
+          <div class="k-segmented" id="main-language">
+            <button class="k-segmented__option k-type-label" data-value="pt-BR">Português (Brasil)</button>
+            <button class="k-segmented__option k-type-label" data-value="en-US">English (US)</button>
+          </div>
+        </div>
         <button class="setting setting--link" type="button" data-open="chrome://settings/languages">
           <span class="text"><span class="k-type-panel">Idiomas preferidos</span><span class="k-type-caption hint" id="languages"></span></span>
           <span class="k-icon" data-icon="external-link"></span>

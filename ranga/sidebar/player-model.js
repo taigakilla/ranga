@@ -3,6 +3,13 @@ export function pickSession(sessions, activeTabId, lastTabId) {
   return shown.find((s) => s.playing && s.tabId === lastTabId) || shown.find((s) => s.playing) || shown.find((s) => s.tabId === lastTabId) || shown[0] || null;
 }
 
+export const DISMISS_GRACE_MS = 2000;
+
+export function visibleSessions(sessions, dismissed, now) {
+  if (!dismissed) return sessions;
+  return sessions.filter((s) => !dismissed.tabs.includes(s.tabId) || (s.playing && now - dismissed.at > DISMISS_GRACE_MS));
+}
+
 export function positionAt(session, elapsedMs) {
   if (!session?.duration) return 0;
   const moved = session.playing ? (session.rate || 1) * elapsedMs / 1000 : 0;

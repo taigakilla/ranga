@@ -227,7 +227,7 @@ export function setupContainerGroups({ section, list, windowId, assign, session,
     li.style.setProperty("--container-color", container.color);
     li.dataset.id = container.id;
     const head = document.createElement("div");
-    head.className = "group__head k-state k-type-label" + (container.collapsed && holdsActive ? " group__head--active" : "");
+    head.className = "group__head k-state k-type-label";
     head.setAttribute("role", "button");
     head.setAttribute("aria-expanded", String(!container.collapsed));
     head.title = container.collapsed ? "Mostrar o grupo" : "Recolher o grupo";
@@ -241,19 +241,27 @@ export function setupContainerGroups({ section, list, windowId, assign, session,
     add.classList.add("group__add");
     head.append(chip, count, add, chevron);
     head.onclick = async () => {
+      const turn = container.collapsed ? "rotate(0deg)" : "rotate(-90deg)";
+      animate(chevron, [{ transform: getComputedStyle(chevron).transform }, { transform: turn }], "spatial-default");
+      chevron.style.transform = turn;
       const body = li.querySelector(".group__pages");
       if (body && !container.collapsed) {
-        await animate(body, [{ height: `${body.offsetHeight}px`, opacity: 1 }, { height: "0px", opacity: 0 }], "spatial-fast")?.finished.catch(() => {});
-        body.style.display = "none";
+        const leaving = holdsActive ? [...body.children].filter((row) => !row.classList.contains("k-list-item--active")) : [body];
+        await Promise.all(leaving.map((el) => {
+          el.style.overflow = "hidden";
+          return animate(el, [{ height: `${el.offsetHeight}px`, minHeight: "0px", opacity: 1 }, { height: "0px", minHeight: "0px", paddingTop: "0px", paddingBottom: "0px", opacity: 0 }], "spatial-fast")?.finished.catch(() => {});
+        }));
+        for (const el of leaving) el.style.display = "none";
       }
       save(toggleGroup(containers, container.id));
     };
     head.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); groupMenu(container, e.clientX, e.clientY); };
     li.append(head);
-    if (!container.collapsed) {
+    const visible = container.collapsed ? pages.filter((p) => tabOf(live, p.id) === activeId) : pages;
+    if (visible.length) {
       const body = document.createElement("ul");
       body.className = "group__pages k-list";
-      body.append(...pages.map((page) => pageRow(container, page, tabs, activeId)));
+      body.append(...visible.map((page) => pageRow(container, page, tabs, activeId)));
       li.append(body);
     }
     return li;
@@ -267,11 +275,20 @@ export function setupContainerGroups({ section, list, windowId, assign, session,
     section.hidden = shown.length === 0;
     const before = expanded ?? new Set(shown.filter((c) => !c.collapsed).map((c) => c.id));
     expanded = new Set(shown.filter((c) => !c.collapsed).map((c) => c.id));
+    const turning = new Map([...list.querySelectorAll(".group")].map((g) => [g.dataset.id, getComputedStyle(g.querySelector(".group__chevron")).transform]));
+    const peeking = new Map([...list.querySelectorAll(".group--collapsed .group__pages")].map((body) => [body.parentElement.dataset.id, body.offsetHeight]));
     list.replaceChildren(...shown.map((c) => group(c, tabs, activeId)));
+    for (const g of list.querySelectorAll(".group")) {
+      const chevron = g.querySelector(".group__chevron");
+      const from = turning.get(g.dataset.id);
+      const to = getComputedStyle(chevron).transform;
+      if (from && from !== to) animate(chevron, [{ transform: from }, { transform: to }], "spatial-default");
+    }
     for (const id of expanded) {
       if (before.has(id)) continue;
       const body = list.querySelector(`.group[data-id="${CSS.escape(id)}"] .group__pages`);
-      if (body) animate(body, [{ height: "0px", opacity: 0 }, { height: `${body.offsetHeight}px`, opacity: 1 }], "spatial-default");
+      const from = peeking.get(id) ?? 0;
+      if (body) animate(body, [{ height: `${from}px`, opacity: from ? 1 : 0 }, { height: `${body.offsetHeight}px`, opacity: 1 }], "spatial-default");
     }
   }
 

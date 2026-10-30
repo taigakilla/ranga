@@ -1,4 +1,4 @@
-import { loadSettings } from "./settings-model.js";
+import { mainLanguage, withMainLanguage, loadSettings } from "./settings-model.js";
 import { others, pinnedIds, togglePin } from "./extensions-model.js";
 import { available as rangaPrivate, call } from "./ranga-private.js";
 import { loadContainers, createContainer, updateContainer, deleteContainer, CONTAINER_COLORS, CONTAINER_ICONS } from "./containers-model.js";
@@ -217,7 +217,15 @@ async function paintBrowserPrefs() {
   const dir = prefs.get("download.default_directory")?.value;
   document.getElementById("download-dir").textContent = dir ? `Desligado, salva direto em ${dir}.` : "";
   document.getElementById("dictionaries").textContent = languageNames(prefs.get("spellcheck.dictionaries")?.value ?? []);
-  document.getElementById("languages").textContent = languageNames(String(prefs.get("intl.accept_languages")?.value ?? "").split(",").filter(Boolean));
+  const accept = String(prefs.get("intl.accept_languages")?.value ?? "");
+  document.getElementById("languages").textContent = languageNames(accept.split(",").filter(Boolean));
+  for (const option of document.querySelectorAll("#main-language [data-value]")) {
+    option.setAttribute("aria-pressed", String(option.dataset.value === mainLanguage(accept)));
+    option.onclick = async () => {
+      await chrome.settingsPrivate.setPref("intl.accept_languages", withMainLanguage(accept, option.dataset.value)).catch(() => {});
+      paintBrowserPrefs();
+    };
+  }
   const master = document.querySelector('[data-pref="helium.services.enabled"]');
   const services = Boolean(prefs.get("helium.services.enabled")?.value && prefs.get("helium.services.user_consented")?.value);
   master.checked = services;
@@ -345,24 +353,35 @@ document.addEventListener("keydown", (e) => {
 
 paintShortcuts();
 
+function engineButton(name, title, pressed, onclick) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "engine k-state k-type-label";
+  b.textContent = name;
+  b.title = title;
+  b.setAttribute("aria-pressed", String(pressed));
+  b.onclick = onclick;
+  return b;
+}
+
 async function paintEngines() {
   if (!rangaPrivate) return;
   const engines = await call("getSearchEngines").catch(() => []);
-  const box = document.getElementById("engines");
   document.getElementById("engines-setting").hidden = engines.length === 0;
-  box.replaceChildren(...engines.map((engine) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "engine k-state k-type-label";
-    b.textContent = engine.name;
-    b.title = engine.keyword;
-    b.setAttribute("aria-pressed", String(engine.isDefault));
-    b.onclick = async () => {
-      await call("setDefaultSearchEngine", engine.id).catch(() => {});
+  document.getElementById("private-engines-setting").hidden = engines.length === 0;
+  document.getElementById("engines").replaceChildren(...engines.map((engine) => engineButton(engine.name, engine.keyword, engine.isDefault, async () => {
+    await call("setDefaultSearchEngine", engine.id).catch(() => {});
+    paintEngines();
+  })));
+  const chosen = engines.some((e) => e.id === settings.privateSearchEngine) ? settings.privateSearchEngine : "";
+  const same = async () => { await save("privateSearchEngine", ""); paintEngines(); };
+  document.getElementById("private-engines").replaceChildren(
+    engineButton("Igual à normal", "Usa o mecanismo de busca padrão", chosen === "", same),
+    ...engines.map((engine) => engineButton(engine.name, engine.keyword, chosen === engine.id, async () => {
+      await save("privateSearchEngine", engine.id);
       paintEngines();
-    };
-    return b;
-  }));
+    })),
+  );
 }
 
 paintEngines();

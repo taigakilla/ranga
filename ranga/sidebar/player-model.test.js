@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { pickSession, positionAt, clock, describe, shouldAutoPip } from "./player-model.js";
+import { pickSession, visibleSessions, positionAt, clock, describe, shouldAutoPip } from "./player-model.js";
 
 test("o player mostra a mídia de outra aba, a que toca primeiro", () => {
   const sessions = [{ tabId: 1, playing: false }, { tabId: 2, playing: true }, { tabId: 3, playing: true }];
@@ -9,6 +9,16 @@ test("o player mostra a mídia de outra aba, a que toca primeiro", () => {
   assert.equal(pickSession(sessions, 9, 3).tabId, 3);
   assert.equal(pickSession([{ tabId: 1, playing: false }], 1, null), null);
   assert.equal(pickSession([{ tabId: 1, playing: false }, { tabId: 4, playing: false }], 9, 4).tabId, 4);
+});
+
+test("fechar o player esconde as mídias daquela hora até uma delas voltar a tocar", () => {
+  const sessions = [{ tabId: 1, playing: false }, { tabId: 2, playing: false }];
+  const dismissed = { tabs: [1, 2], at: 1000 };
+  assert.deepEqual(visibleSessions(sessions, dismissed, 5000), []);
+  assert.deepEqual(visibleSessions([{ tabId: 1, playing: true }], dismissed, 2500), []);
+  assert.deepEqual(visibleSessions([{ tabId: 1, playing: true }], dismissed, 5000).map((s) => s.tabId), [1]);
+  assert.deepEqual(visibleSessions([...sessions, { tabId: 7, playing: false }], dismissed, 5000).map((s) => s.tabId), [7]);
+  assert.equal(visibleSessions(sessions, null, 0), sessions);
 });
 
 test("a posição anda com o tempo enquanto toca e para no fim", () => {

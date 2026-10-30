@@ -61,6 +61,7 @@ export function setupArchive({ popover, reopen }) {
   popover.addEventListener("click", (e) => e.stopPropagation());
   document.addEventListener("click", close);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  popover.addEventListener("dismiss", close);
 
   return {
     async open() {

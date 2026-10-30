@@ -2,7 +2,7 @@ import { glyph } from "./kurobe/icons.mjs";
 import { available, call } from "./ranga-private.js";
 import { animate, kick, pop, reducedMotion } from "./motion.js";
 import { faviconOf } from "./tabs-model.js";
-import { pickSession, positionAt, clock, describe } from "./player-model.js";
+import { pickSession, visibleSessions, positionAt, clock, describe } from "./player-model.js";
 
 export function setupPlayer({ root, windowId, enabled }) {
   if (!available) return { refresh() {} };
@@ -24,6 +24,7 @@ export function setupPlayer({ root, windowId, enabled }) {
   let activeTabId = null;
   let timer = null;
   let frame = 0;
+  let dismissed = null;
 
   function icon(button, name) {
     button.querySelector(".k-icon").textContent = glyph(name);
@@ -56,7 +57,7 @@ export function setupPlayer({ root, windowId, enabled }) {
   }
 
   async function paint() {
-    const next = enabled() ? pickSession(sessions, activeTabId, shown?.tabId) : null;
+    const next = enabled() ? pickSession(visibleSessions(sessions, dismissed, performance.now()), activeTabId, shown?.tabId) : null;
     const changed = next?.tabId !== shown?.tabId;
     shown = next;
     if (!shown) return show(false);
@@ -102,6 +103,12 @@ export function setupPlayer({ root, windowId, enabled }) {
   $(".player__prev").onclick = (e) => { kick(e.currentTarget.querySelector(".k-icon"), "translateX(-6px)"); action("previous"); };
   $(".player__next").onclick = (e) => { kick(e.currentTarget.querySelector(".k-icon"), "translateX(6px)"); action("next"); };
   $(".player__pip").onclick = () => action("pip");
+  $(".player__close").onclick = () => {
+    if (!shown) return;
+    if (shown.playing) call("mediaAction", shown.tabId, "pause").catch(() => {});
+    dismissed = { tabs: sessions.map((s) => s.tabId), at: performance.now() };
+    paint();
+  };
   mute.onclick = async () => {
     if (!tab) return;
     pop(mute);

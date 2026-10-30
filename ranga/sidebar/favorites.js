@@ -152,5 +152,6 @@ export function setupFavorites({ button, popover, activeTab, windowId, openTab }
   popover.addEventListener("click", (e) => e.stopPropagation());
   document.addEventListener("click", close);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  popover.addEventListener("dismiss", close);
   chrome.bookmarks.onChanged.addListener(() => { if (!popover.hidden) paint(0); });
 }
