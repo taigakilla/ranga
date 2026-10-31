@@ -1,4 +1,4 @@
-A barra lateral do Ranga vira extensão de componente: o navegador a carrega de --ranga-sidebar-dir=<pasta> ou de <pasta do binário>/ranga-sidebar, sem --load-extension. Não aparece em chrome://extensions e não pode ser desligada. Adaptado do patch 0021 do Flecha (MIT).
+A barra lateral do Ranga vira extensão de componente: o navegador a carrega de --ranga-sidebar-dir=<pasta> ou de <pasta do binário>/ranga-sidebar, sem --load-extension. Não aparece em chrome://extensions e não pode ser desligada. O manifesto é lido na hora, junto com os outros componentes, pra nova aba do Ranga já valer na primeira aba. Adaptado do patch 0021 do Flecha (MIT).
 
 --- /dev/null
 +++ b/chrome/browser/ranga/ranga_sidebar.h
@@ -59,7 +59,7 @@ A barra lateral do Ranga vira extensão de componente: o navegador a carrega de 
  #include "chrome/common/channel_info.h"
  #include "chrome/common/chrome_features.h"
  #include "chrome/common/chrome_paths.h"
-@@ -567,6 +568,53 @@
+@@ -567,6 +568,45 @@
    }
  }
  
@@ -78,22 +78,14 @@ A barra lateral do Ranga vira extensão de componente: o navegador a carrega de 
 +               << " must be an absolute path: " << dir;
 +    return;
 +  }
-+  GetExtensionFileTaskRunner()->PostTaskAndReplyWithResult(
-+      FROM_HERE,
-+      base::BindOnce(
-+          [](const base::FilePath& dir) {
-+            std::string error;
-+            std::optional<base::DictValue> manifest =
-+                file_util::LoadManifest(dir, &error);
-+            if (!manifest) {
-+              LOG(ERROR) << "Ranga's sidebar couldn't load from " << dir
-+                         << ": " << error;
-+            }
-+            return manifest;
-+          },
-+          dir),
-+      base::BindOnce(&ComponentLoader::FinishAddRangaSidebar,
-+                     weak_factory_.GetWeakPtr(), dir));
++  std::string error;
++  std::optional<base::DictValue> manifest =
++      file_util::LoadManifest(dir, &error);
++  if (!manifest) {
++    LOG(ERROR) << "Ranga's sidebar couldn't load from " << dir << ": "
++               << error;
++  }
++  FinishAddRangaSidebar(dir, std::move(manifest));
 +}
 +
 +void ComponentLoader::FinishAddRangaSidebar(
@@ -113,7 +105,7 @@ A barra lateral do Ranga vira extensão de componente: o navegador a carrega de 
  void ComponentLoader::AddContextualTasksExtension() {
    if (base::FeatureList::IsEnabled(
            extensions_features::kApiContextualTasksPrivate)) {
-@@ -713,6 +761,7 @@
+@@ -713,6 +753,7 @@
    if (!skip_session_components) {
      AddWebStoreApp();
      AddUBlock();

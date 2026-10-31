@@ -1,4 +1,4 @@
-Barra recolhida: a página da barra fica acordada (captura visível, sem trava de tela) em vez de oculta e estrangulada, o atalho de recolher troca o modo no nativo, a tela cheia recolhe e restaura a barra no nativo, e o foco que cai na barra escondida volta pra página.
+Barra recolhida: a página da barra fica acordada (captura visível, sem trava de tela) em vez de oculta e estrangulada, o atalho de recolher troca o modo no nativo, a tela cheia recolhe e restaura a barra no nativo, e o foco que cai na barra escondida volta pra página. O vigia da borda solta o FocusManager quando ele é destruído, senão fechar a janela derruba o navegador.
 
 --- a/chrome/browser/ui/extensions/extension_side_panel_coordinator_views.cc
 +++ b/chrome/browser/ui/extensions/extension_side_panel_coordinator_views.cc
@@ -111,7 +111,7 @@ Barra recolhida: a página da barra fica acordada (captura visível, sem trava d
  base::flat_map<SessionID::id_type, std::unique_ptr<RevealSpring>>& Springs() {
    static base::NoDestructor<
        base::flat_map<SessionID::id_type, std::unique_ptr<RevealSpring>>>
-@@ -117,18 +127,48 @@
+@@ -117,18 +127,53 @@
  // managers with gaps leave the screen edge outside of it: a pointer pushed to
  // the edge crosses the strip between two events. Reaching the window's edge
  // on the sidebar's side, or leaving the window through it, floats the sidebar.
@@ -156,6 +156,11 @@ Barra recolhida: a página da barra fica acordada (captura visível, sem trava d
 +    }
 +  }
 +
++  void OnFocusManagerDestroying(views::FocusManager* focus_manager) override {
++    focus_->RemoveFocusChangeListener(this);
++    focus_ = nullptr;
++  }
++
 +  void FocusPage() {
 +    if (RangaGetSidebarMode(browser_) == RangaSidebarMode::kCollapsed) {
 +      RangaFocusPageIfInSidebar(browser_);
@@ -163,7 +168,7 @@ Barra recolhida: a página da barra fica acordada (captura visível, sem trava d
    }
  
    void OnMouseEvent(ui::MouseEvent* event) override {
-@@ -160,6 +200,8 @@
+@@ -160,6 +205,8 @@
    const raw_ptr<BrowserWindowInterface> browser_;
    const SessionID::id_type id_;
    const raw_ptr<aura::Window> root_;
@@ -172,7 +177,7 @@ Barra recolhida: a página da barra fica acordada (captura visível, sem trava d
  };
  
  base::flat_map<SessionID::id_type, std::unique_ptr<EdgeWatcher>>& Watchers() {
-@@ -170,7 +212,12 @@
+@@ -170,7 +217,12 @@
  }
  
  void EdgeWatcher::OnWindowDestroying(aura::Window* window) {
@@ -185,7 +190,7 @@ Barra recolhida: a página da barra fica acordada (captura visível, sem trava d
    Watchers().erase(id_);
  }
  
-@@ -181,7 +228,8 @@
+@@ -181,7 +233,8 @@
    }
    aura::Window* root = view->GetWidget()->GetNativeWindow()->GetRootWindow();
    if (root) {
@@ -195,7 +200,7 @@ Barra recolhida: a página da barra fica acordada (captura visível, sem trava d
    }
  }
  
-@@ -198,6 +246,32 @@
+@@ -198,6 +251,32 @@
    return std::nullopt;
  }
  
@@ -228,7 +233,7 @@ Barra recolhida: a página da barra fica acordada (captura visível, sem trava d
  RangaSidebarMode RangaGetSidebarMode(const BrowserWindowInterface* browser) {
    auto it = Modes().find(browser->GetSessionID().id());
    return it == Modes().end() ? RangaSidebarMode::kDocked : it->second;
-@@ -229,6 +303,9 @@
+@@ -229,6 +308,9 @@
      }
      spring->SetTarget(target);
      view->InvalidateLayout();

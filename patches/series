@@ -62,3 +62,4 @@ ranga/ui/escape-exits-fullscreen.patch
 ranga/ui/private-search-engine.patch
 ranga/ui/back-forward-hint.patch
 ranga/ui/collapsed-sidebar-keys.patch
+ranga/ui/restart-through-launcher.patch

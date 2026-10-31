@@ -1,0 +1,27 @@
+Reiniciar relança pelo lançador (CHROME_WRAPPER) em vez do binário em uso: depois de uma atualização, o lançador abre a versão nova com as bibliotecas dela.
+
+--- a/chrome/browser/extensions/api/ranga_private/ranga_private_api.cc
++++ b/chrome/browser/extensions/api/ranga_private/ranga_private_api.cc
+@@ -16,6 +16,9 @@
+ #include "base/base64.h"
+ #include "base/json/json_reader.h"
+ #include "base/functional/callback_helpers.h"
++#include "base/environment.h"
++#include "base/command_line.h"
++#include "base/files/file_path.h"
+ #include "base/strings/string_number_conversions.h"
+ #include "base/strings/string_util.h"
+ #include "base/strings/utf_string_conversions.h"
+@@ -414,6 +417,12 @@
+     return RespondNow(NoArguments());
+   }
+   if (params->command == "restart") {
++    if (std::optional<std::string> wrapper =
++            base::Environment::Create()->GetVar("CHROME_WRAPPER");
++        wrapper && !wrapper->empty()) {
++      base::CommandLine::ForCurrentProcess()->SetProgram(
++          base::FilePath(*wrapper));
++    }
+     chrome::AttemptRestart();
+     return RespondNow(NoArguments());
+   }
