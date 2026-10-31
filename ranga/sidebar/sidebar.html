@@ -98,6 +98,9 @@
       <span class="k-icon" data-icon="arrow-down-to-line"></span>
     </button>
     <nav id="spaces" class="spaces" aria-label="Espaços"></nav>
+    <button id="devices-button" class="devices-button k-icon-button k-state" title="Outros aparelhos" aria-haspopup="dialog" hidden>
+      <span class="k-icon" data-icon="monitor-smartphone"></span>
+    </button>
   </footer>
 
   <section id="favorites-popover" class="favorites-popover" role="dialog" aria-label="Favoritos" hidden>
@@ -155,6 +158,11 @@
     </div>
   </section>
 
+  <section id="devices-popover" class="favorites-popover devices-popover" role="dialog" aria-label="Outros aparelhos" hidden>
+    <header class="favorites-header"><span class="k-type-panel">Outros aparelhos</span></header>
+    <ul class="devices-list favorites-list k-list"></ul>
+  </section>
+
   <div id="snackbar" class="k-snackbar k-type-label" role="status" hidden>
     <span class="k-snackbar__text"></span>
     <button class="k-snackbar__action"></button>
@@ -164,6 +172,7 @@
 
   <ul id="space-menu" class="k-menu k-type-label" role="menu" hidden>
     <li class="k-menu__item k-state" data-space-action="edit"><span class="k-icon" data-icon="palette"></span>Editar espaço</li>
+    <li class="k-menu__item k-state" data-space-action="sync" hidden><span class="k-icon" data-icon="cloud-sync"></span><span>Sincronizar espaço</span></li>
     <li class="k-menu__item k-state" data-space-action="delete"><span class="k-icon" data-icon="x"></span>Apagar espaço</li>
   </ul>
 

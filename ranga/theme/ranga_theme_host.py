@@ -111,6 +111,9 @@ def handle(message, colors, theme):
     if message.get("type") == "location":
         send({"type": "location", "location": location()})
         return
+    if message.get("type") == "hostname":
+        send({"type": "hostname", "hostname": socket.gethostname()})
+        return
     if message.get("type") != "set-opacity":
         return
     value = max(0, min(100, int(message.get("value", ranga_theme.DEFAULT_OPACITY))))

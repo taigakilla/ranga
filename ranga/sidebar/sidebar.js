@@ -21,10 +21,12 @@ import { dropTab, joinWindow } from "./split-drop.js";
 import { windowAt, chromeWindowFor, zonesFor, partnerFor } from "./drag-model.js";
 import { iconChoices } from "./icons-model.js";
 import { setupDownloads } from "./downloads.js";
+import { setupDevices } from "./devices.js";
 import { setupPins } from "./pins.js";
 import { setupPlayer } from "./player.js";
 import { setupPopups } from "./popups.js";
 import { available as rangaPrivate, call } from "./ranga-private.js";
+import { initSyncUi, sendEntries, syncConnected } from "./sync-ui.js";
 
 const SPACE_COLORS = [null, "#71b1ec", "#7cc2a8", "#d9c08a", "#d49a78", "#d8737a", "#b59ad4"];
 
@@ -191,6 +193,7 @@ async function tabsMenu(ids, x, y) {
     },
     { icon: "copy", label: "Duplicar", action: () => { tabList.clearSelection(); for (const t of tabs) chrome.tabs.duplicate(t.id); } },
     { icon: "link", label: "Copiar links", action: () => navigator.clipboard.writeText(tabs.map((t) => t.url).join("\n")) },
+    ...sendEntries(tabs),
     { icon: "rotate-cw", label: "Recarregar", action: () => { for (const t of tabs) chrome.tabs.reload(t.id); } },
     { icon: "moon", label: "Dormir", action: () => { tabList.clearSelection(); for (const t of tabs) if (!t.active && !t.discarded) chrome.tabs.discard(t.id).catch(() => {}); } },
     ...groupEntries(ids),
@@ -209,6 +212,7 @@ function tabMenu(item, x, y, selection) {
     { icon: "pencil", label: "Renomear", action: () => tabList.rename(item.id) },
     { icon: "copy", label: "Duplicar", action: () => chrome.tabs.duplicate(item.id) },
     { icon: "link", label: "Copiar link", action: () => navigator.clipboard.writeText(item.url) },
+    ...sendEntries([item]),
     { icon: "rotate-cw", label: "Recarregar", action: () => chrome.tabs.reload(item.id) },
     ...(item.active || item.asleep ? [] : [{ icon: "moon", label: "Dormir", action: () => chrome.tabs.discard(item.id).catch(() => {}) }]),
     ...(item.audio === "muted" ? [{ icon: "volume-2", label: "Ativar som", action: () => chrome.tabs.update(item.id, { muted: false }) }] : []),
@@ -521,6 +525,9 @@ function openSpaceMenu(spaceId, anchor) {
   const rect = anchor.getBoundingClientRect();
   spaceMenu.style.left = `${Math.max(8, rect.left)}px`;
   spaceMenu.style.bottom = `${window.innerHeight - rect.top + 8}px`;
+  const sync = spaceMenu.querySelector("[data-space-action=sync]");
+  sync.hidden = !syncConnected();
+  sync.lastChild.textContent = spaces.spaces.find((s) => s.id === spaceId)?.sync ? "Parar de sincronizar" : "Sincronizar espaço";
   spaceMenu.hidden = false;
 }
 
@@ -600,6 +607,11 @@ for (const item of spaceMenu.querySelectorAll("[data-space-action]")) {
     const space = spaces.spaces.find((s) => s.id === menuSpaceId);
     if (!space) return;
     if (item.dataset.spaceAction === "edit") openSpaceForm(space);
+    if (item.dataset.spaceAction === "sync") {
+      spaces = updateSpace(spaces, space.id, { sync: !space.sync });
+      await saveSpaces();
+      toast(space.sync ? `${space.name} parou de sincronizar` : `${space.name} vai aparecer nos outros aparelhos`);
+    }
     if (item.dataset.spaceAction === "delete" && spaces.spaces.length > 1) {
       const moving = Object.entries(spaces.tabSpace).filter(([, id]) => id === space.id).map(([id]) => Number(id));
       spaces = deleteSpace(spaces, space.id);
@@ -798,6 +810,12 @@ setupDownloads({
   windowId: () => windowId,
 });
 
+setupDevices({
+  button: document.getElementById("devices-button"),
+  popover: document.getElementById("devices-popover"),
+  openTab: (url, active) => (currentSession() ? containers.open({ url, container: currentSession(), active }) : chrome.tabs.create({ url, windowId, active })),
+});
+
 setupFavorites({
   button: document.getElementById("favorites-button"),
   popover: document.getElementById("favorites-popover"),
@@ -926,6 +944,17 @@ const SHORTCUT_ACTIONS = {
 
 chrome.rangaPrivate?.onShortcut?.addListener((command, w) => {
   if (w === windowId) SHORTCUT_ACTIONS[command]?.()?.catch?.(() => {});
+});
+
+initSyncUi(async (received) => {
+  if ((await chrome.windows.getLastFocused()).id !== windowId) return;
+  toast(`Aba recebida de ${received.from}: ${received.title || received.url}`, {
+    label: "Abrir",
+    run: async () => {
+      const tab = (await chrome.tabs.query({})).find((t) => (t.pendingUrl || t.url) === received.url);
+      if (tab) chrome.tabs.update(tab.id, { active: true });
+    },
+  });
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {

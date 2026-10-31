@@ -4,6 +4,7 @@ import { cleanUrl, markdownLink } from "./link-model.js";
 import { toMap } from "./shortcuts-model.js";
 import { peekTabs } from "./peek-model.js";
 import { shouldAutoPip } from "./player-model.js";
+import { init as initSync } from "./sync-engine.js";
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 chrome.downloads.setUiOptions({ enabled: false }).catch(() => {});
@@ -95,6 +96,7 @@ async function acceptServicesSchema() {
 applyShortcuts();
 applyLinks();
 acceptServicesSchema();
+initSync();
 chrome.runtime.onStartup.addListener(() => {
   applyShortcuts();
   applyLinks();

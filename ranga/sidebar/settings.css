@@ -12,7 +12,8 @@ main { padding: var(--k-space-huge) 0; display: flex; flex-direction: column; ga
 #no-results { margin: 0; text-align: center; }
 #no-results[hidden], .card[hidden], .card.filtered, .setting.filtered { display: none; }
 .card { scroll-margin-top: var(--k-space-xxl); }
-.card > p { margin: 0; padding: 0 var(--k-space-xxl) var(--k-space-sm); }
+.card > p, .card > div > p { margin: 0; padding: 0 var(--k-space-xxl) var(--k-space-sm); }
+#sync-recovery { font-size: 15px; letter-spacing: 0.04em; word-break: break-all; user-select: all; }
 .setting--link { appearance: none; border: 0; width: 100%; background: transparent; color: inherit; font: inherit; text-align: left; }
 .setting--link > .k-icon { font-size: 18px; color: var(--k-color-on-surface-variant); }
 .setting--link:hover { background: color-mix(in srgb, var(--k-color-on-surface) 6%, transparent); }

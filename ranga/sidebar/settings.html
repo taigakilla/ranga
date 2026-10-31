@@ -370,10 +370,79 @@
         <h2 class="k-type-section">Extensões</h2>
         <p class="k-type-caption hint" id="extensions-hint" hidden>Fixadas aparecem no topo da barra lateral. As outras ficam no botão de extensões ao lado.</p>
         <div id="extension-settings"></div>
+        <div id="sync-extensions" hidden>
+          <p class="k-type-caption hint">Nos outros aparelhos, e não neste:</p>
+          <div id="sync-extensions-list"></div>
+        </div>
         <button class="setting setting--link" type="button" data-open="chrome://extensions">
           <span class="text"><span class="k-type-panel">Gerenciar extensões</span><span class="k-type-caption hint">Instalar, ligar, desligar e dar acesso aos sites.</span></span>
           <span class="k-icon" data-icon="external-link"></span>
         </button>
+      </section>
+
+      <section class="card" id="sincronizacao" data-title="Sincronização" data-nav-icon="cloud-sync">
+        <h2 class="k-type-section">Sincronização</h2>
+        <div id="sync-off">
+          <p class="k-type-caption hint">Opcional. Conecte uma conta Google pra ver as abas dos outros aparelhos, mandar uma aba pra eles e levar grupos e espaços junto. Tudo é cifrado aqui antes de ir pro Google Drive, numa pasta escondida do app. Senhas ficam no 1Password.</p>
+          <div class="setting">
+            <span class="text"><span class="k-type-panel">Conta Google</span><span class="k-type-caption hint" id="sync-unavailable" hidden>Este build não tem o cliente do Google configurado.</span></span>
+            <button id="sync-connect" class="k-button k-button--tonal k-type-button" type="button">Conectar</button>
+          </div>
+        </div>
+        <div id="sync-save-key" hidden>
+          <p class="k-type-caption hint">Guarde esta chave de recuperação (no 1Password, por exemplo). Ela é o que abre os seus dados em outro aparelho; sem ela, ninguém lê o que está no Drive, nem o Google, nem o Ranga.</p>
+          <div class="setting">
+            <span class="text"><code class="k-type-numeric" id="sync-recovery"></code></span>
+            <button id="sync-copy-key" class="k-button k-button--text k-type-button" type="button">Copiar</button>
+          </div>
+          <div class="setting">
+            <span class="text"></span>
+            <button id="sync-key-saved" class="k-button k-button--filled k-type-button" type="button">Já guardei</button>
+          </div>
+        </div>
+        <div id="sync-enter-key" hidden>
+          <p class="k-type-caption hint">Esta conta já tem dados do Ranga. Digite a chave de recuperação que apareceu quando você ativou a sincronização no primeiro aparelho.</p>
+          <form id="sync-unlock" class="setting container-new">
+            <input name="recovery" class="k-text-field k-type-label" placeholder="Chave de recuperação" autocomplete="off" spellcheck="false">
+            <button class="k-button k-button--tonal k-type-button" type="submit">Entrar</button>
+          </form>
+          <div class="setting">
+            <span class="text"></span>
+            <button id="sync-cancel" class="k-button k-button--text k-type-button" type="button">Cancelar</button>
+          </div>
+        </div>
+        <p class="k-type-caption hint" id="sync-message" hidden></p>
+        <div id="sync-on" hidden>
+          <div class="setting">
+            <span class="text"><span class="k-type-panel">Conta</span><span class="k-type-caption hint" id="sync-status"></span></span>
+            <button id="sync-disconnect" class="k-button k-button--text k-type-button" type="button">Desconectar</button>
+          </div>
+          <form id="sync-device" class="setting container-new">
+            <input name="name" class="k-text-field k-type-label" placeholder="Nome deste aparelho" maxlength="40" autocomplete="off">
+            <button class="k-button k-button--tonal k-type-button" type="submit">Salvar</button>
+          </form>
+          <label class="setting">
+            <span class="text"><span class="k-type-panel">Abas abertas</span><span class="k-type-caption hint">Os outros aparelhos veem as abas deste em "Outros aparelhos".</span></span>
+            <input class="k-switch" type="checkbox" data-key="syncTabs">
+          </label>
+          <label class="setting">
+            <span class="text"><span class="k-type-panel">Favoritos</span><span class="k-type-caption hint">Pastas e links ficam iguais em todos os aparelhos. Na primeira vez, junta os dos dois lados sem apagar nada.</span></span>
+            <input class="k-switch" type="checkbox" data-key="syncBookmarks">
+          </label>
+          <label class="setting">
+            <span class="text"><span class="k-type-panel">Histórico</span><span class="k-type-caption hint">As últimas 500 páginas dos últimos 30 dias deste aparelho aparecem no Spotlight dos outros. Desligar apaga a cópia do Drive.</span></span>
+            <input class="k-switch" type="checkbox" data-key="syncHistory">
+          </label>
+          <label class="setting">
+            <span class="text"><span class="k-type-panel">Extensões</span><span class="k-type-caption hint">Os outros aparelhos veem quais extensões da loja estão aqui e podem instalar com um clique.</span></span>
+            <input class="k-switch" type="checkbox" data-key="syncExtensions">
+          </label>
+          <label class="setting">
+            <span class="text"><span class="k-type-panel">Grupos</span><span class="k-type-caption hint">Os grupos e as páginas deles ficam iguais em todos os aparelhos.</span></span>
+            <input class="k-switch" type="checkbox" data-key="syncContainers">
+          </label>
+          <p class="k-type-caption hint">Espaços sincronizam um a um: no menu do espaço, "Sincronizar espaço".</p>
+        </div>
       </section>
 
       <section class="card" id="perfil" data-title="Perfil e dados" data-nav-icon="user">

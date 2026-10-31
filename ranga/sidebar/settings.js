@@ -6,6 +6,7 @@ import { glyph } from "./kurobe/icons.mjs";
 import { loadAliases, validAlias, SCOPES } from "./aliases-model.js";
 import { typed, shown } from "./browser-prefs.js";
 import { current, assign, reset, toMap, label, fromEvent, SHORTCUTS } from "./shortcuts-model.js";
+import "./settings-sync.js";
 
 const themeStyle = document.getElementById("ranga-theme");
 let settings = loadSettings((await chrome.storage.local.get("settings")).settings);

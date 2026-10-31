@@ -31,6 +31,7 @@ case "${1:-}" in
   open)
     shift
     p="$(profile)"
+    [ -f "$HOME/.config/ranga/google-client.json" ] && cp "$HOME/.config/ranga/google-client.json" "$extension/google-client.json"
     first_run=(--no-first-run)
     [ -n "${RANGA_FIRST_RUN:-}" ] && first_run=()
     pkill -f "^$binary --user-data-dir=$p"

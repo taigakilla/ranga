@@ -344,6 +344,17 @@ body.compact .ess { height: 44px; }
 .download__bar--unknown::after { animation: indeterminate 1.4s ease-in-out infinite; }
 @keyframes indeterminate { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
 .downloads-actions { display: flex; justify-content: space-between; }
+.devices-button { grid-column: 3; }
+.devices-button[hidden] { display: none; }
+.devices-button[aria-expanded="true"] { background: var(--k-color-secondary-container); color: var(--k-color-on-secondary-container); border-radius: var(--k-shape-medium); }
+.devices-popover { top: auto; bottom: 60px; transform-origin: bottom right; }
+.devices-popover .k-list-item__leading img { width: 20px; height: 20px; }
+.device-heading { display: flex; align-items: center; gap: var(--k-space-sm); padding: var(--k-space-sm) var(--k-space-xs) var(--k-space-xxs); list-style: none; color: var(--k-color-on-surface-variant); }
+.device-heading:not(:first-child) { margin-top: var(--k-space-sm); border-top: 1px solid var(--k-color-outline-variant); padding-top: var(--k-space-md); }
+.device-heading .k-type-panel { flex: 1; min-width: 0; color: var(--k-color-on-surface); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.device-tab__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.device-tab__body .k-list-item__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.device-tab__host { color: var(--k-color-on-surface-variant); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #tabs .tab[data-split] { position: relative; background-color: color-mix(in srgb, var(--k-color-surface-container-highest) 92%, transparent); box-shadow: inset 1px 0 0 color-mix(in srgb, var(--k-color-outline-variant) 70%, transparent), inset -1px 0 0 color-mix(in srgb, var(--k-color-outline-variant) 70%, transparent); }
 #tabs .tab[data-split="first"] { margin-top: var(--k-space-xxs); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--k-color-outline-variant) 70%, transparent), inset 1px 0 0 color-mix(in srgb, var(--k-color-outline-variant) 70%, transparent), inset -1px 0 0 color-mix(in srgb, var(--k-color-outline-variant) 70%, transparent); border-radius: var(--k-shape-large) var(--k-shape-large) var(--k-shape-extra-small) var(--k-shape-extra-small); }
 #tabs .tab[data-split="middle"] { border-radius: var(--k-shape-extra-small); }

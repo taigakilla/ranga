@@ -12,6 +12,11 @@ export const DEFAULTS = Object.freeze({
   newtabNews: true,
   newtabCards: true,
   privateSearchEngine: "",
+  syncTabs: true,
+  syncContainers: true,
+  syncBookmarks: true,
+  syncHistory: true,
+  syncExtensions: true,
 });
 
 const CHOICES = {

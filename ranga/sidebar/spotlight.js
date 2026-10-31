@@ -6,6 +6,7 @@ import { glyph } from "./kurobe/icons.mjs";
 import { animate, painted } from "./motion.js";
 import { available as rangaPrivate, call } from "./ranga-private.js";
 import { sessionOf, withSessions } from "./spaces-model.js";
+import { remoteMatches, remoteHistoryMatches } from "./sync-model.js";
 
 const LOCAL_COMMANDS = ["copyCleanLink", "copyMarkdown"];
 const KIND = { command: "Comando", alias: "Atalho" };
@@ -95,10 +96,10 @@ function row(item, index) {
     url.textContent = displayUrl(item.url, true).replace(/^https?:\/\/(www\.)?/, "");
     li.append(url);
   }
-  if (KIND[item.kind]) {
+  if (KIND[item.kind] || item.device) {
     const kind = document.createElement("span");
     kind.className = "kind k-type-caption";
-    kind.textContent = KIND[item.kind];
+    kind.textContent = item.device ?? KIND[item.kind];
     li.append(kind);
   }
   li.onmousemove = (e) => {
@@ -126,12 +127,15 @@ function setAlias(next) {
 async function sources(text, incognito) {
   const scope = alias?.scope;
   const wants = (name) => !incognito && (scope ? scope === name : Boolean(text.trim()));
-  const [tabs, history, bookmarks] = await Promise.all([
+  const [tabs, history, bookmarks, { syncDevices, syncHistory }] = await Promise.all([
     !scope || scope === "tabs" ? chrome.tabs.query(incognito ? { windowId: target.windowId } : {}) : [],
     wants("history") ? chrome.history.search({ text, maxResults: scope ? 40 : 25, startTime: 0 }) : [],
     wants("bookmarks") ? (text.trim() ? chrome.bookmarks.search(text) : chrome.bookmarks.getRecent(20)) : [],
+    !incognito && !scope ? chrome.storage.local.get(["syncDevices", "syncHistory"]) : {},
   ]);
-  return { tabs: tabs.filter((t) => t.id !== target?.id && !/^chrome:\/\/newtab\/?$/.test(t.url || "")), history, bookmarks };
+  const remote = remoteMatches(syncDevices, text);
+  const seenUrls = [...tabs, ...history, ...remote].map((r) => r.url);
+  return { tabs: tabs.filter((t) => t.id !== target?.id && !/^chrome:\/\/newtab\/?$/.test(t.url || "")), history, bookmarks, remote: [...remote, ...remoteHistoryMatches(syncHistory, text, seenUrls)] };
 }
 
 function suggestionsFor(text) {
@@ -164,10 +168,10 @@ async function refresh() {
   if (alias) return paint(text.trim() ? [{ kind: "site", title: `Buscar no ${alias.name}: “${text.trim()}”`, url: aliasUrl(alias, text) }] : []);
   const resolved = mayHaveKeyword(text) || privateEngine ? await resolve(text) : null;
   const base = { ...data, commands, resolved, hint: hintFor(text) };
-  paint(suggestions(text, base));
+  paint([...suggestions(text, base), ...data.remote]);
   const pending = suggestionsFor(text);
   const suggested = pending ? await pending : [];
-  if (suggested.length && query.value === text && !alias) paint(suggestions(text, { ...base, suggested }), true);
+  if (suggested.length && query.value === text && !alias) paint([...suggestions(text, { ...base, suggested }), ...data.remote], true);
 }
 
 function resolve(text) {

@@ -6,3 +6,4 @@
 *.AppImage
 *.AppImage.zsync
 *.log
+/ranga/sidebar/google-client.json

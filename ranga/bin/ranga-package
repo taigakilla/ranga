@@ -25,6 +25,7 @@ cp "$out/locales/"*.pak "$dir/app/locales/"
 
 mkdir -p "$dir/app/resources/ranga-sidebar"
 (cd "$root/ranga/sidebar" && find . -type f ! -name '*.test.js' ! -path './kurobe/*.test.*' -print0 | cpio -0pdm --quiet "$dir/app/resources/ranga-sidebar")
+[ -f "$HOME/.config/ranga/google-client.json" ] && cp "$HOME/.config/ranga/google-client.json" "$dir/app/resources/ranga-sidebar/"
 stamp=$(cd "$dir/app/resources/ranga-sidebar" && find . -type f -print0 | sort -z | xargs -0 cat | cksum | cut -d' ' -f1)
 python3 - "$dir/app/resources/ranga-sidebar/manifest.json" "$((stamp % 65535 + 1))" <<'PY'
 import json, sys

@@ -10,6 +10,9 @@ if [ -f "$onepassword" ] && [ ! -f "$profile/NativeMessagingHosts/com.1password.
   cp "$onepassword" "$profile/NativeMessagingHosts/"
 fi
 
+google="$HOME/.config/ranga/google-client.json"
+[ -f "$google" ] && cp "$google" "$root/ranga/sidebar/google-client.json"
+
 export LANGUAGE="${RANGA_LANGUAGE:-pt_BR}"
 exec "$root/build/src/out/Default/ranga" \
   --user-data-dir="$profile" \
