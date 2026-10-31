@@ -8,7 +8,7 @@
 
 Feito sobre o [Helium](https://github.com/imputnet/helium) (Chromium sem Google), com a barra lateral no estilo do Arc, Material 3 e as cores do tema do sistema.
 
-![versão](https://img.shields.io/badge/versão-0.4.0-7cc2a8?style=flat-square)
+![versão](https://img.shields.io/badge/versão-0.5.0-7cc2a8?style=flat-square)
 ![Chromium](https://img.shields.io/badge/Chromium-156-4c8bf5?style=flat-square)
 ![Linux](https://img.shields.io/badge/Linux-x86__64-e0a64b?style=flat-square)
 ![licença](https://img.shields.io/badge/licença-GPL--3.0-b07ce8?style=flat-square)
@@ -92,6 +92,7 @@ Ctrl+clique e Shift+clique marcam abas; o menu vale pra todas: fechar, mover de 
 
 ## Também
 
+- **Sincronização entre aparelhos** (opcional): favoritos, histórico, extensões, grupos e os espaços que você escolher, mais as abas abertas dos outros aparelhos num botão da barra e no Spotlight, e "Enviar para" no menu da aba. Tudo é cifrado no navegador e guardado numa pasta escondida do seu próprio Google Drive; sem a chave de recuperação, ninguém lê. Senhas ficam no 1Password.
 - **Privacidade do Helium**: sem serviços do Google, uBlock Origin embutido, ruído contra fingerprinting, Global Privacy Control e só HTTPS.
 - **Abas divididas**: arraste uma aba da barra pra cima da página pra dividir à esquerda, à direita, em cima ou embaixo, abrir em nova janela ou levar pra outra janela do Ranga. Cada metade tem botões pra arrastar, separar e fechar.
 - **Grupos**: abas salvas num grupo recolhível na barra, com nome e ícone, que voltam ao reabrir.
@@ -118,6 +119,8 @@ Ctrl+clique e Shift+clique marcam abas; o menu vale pra todas: fechar, mover de 
 | Ctrl+, | Configurações |
 
 Todos (menos Ctrl+Tab) mudam em Configurações → Atalhos.
+
+Novidades de cada versão no [CHANGELOG](CHANGELOG.md).
 
 ## Instalar
 
