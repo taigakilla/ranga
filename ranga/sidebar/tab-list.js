@@ -81,10 +81,11 @@ export function createTabList({ list, indicator, onActivate, onClose, onMute, on
   }
 
   function dragTo(e) {
-    const dy = e.clientY - drag.startY;
+    let dy = e.clientY - drag.startY;
     if (!drag.active) {
       if (Math.hypot(e.clientX - drag.startX, dy) < 5) return;
       drag.active = true;
+      drag.listTop = list.getBoundingClientRect().top;
       drag.rows = [...list.children];
       drag.from = drag.rows.indexOf(drag.li);
       drag.step = drag.rows.length > 1 ? drag.rows[1].offsetTop - drag.rows[0].offsetTop : drag.li.offsetHeight;
@@ -93,6 +94,7 @@ export function createTabList({ list, indicator, onActivate, onClose, onMute, on
       document.body.classList.add("dragging-tab");
       indicator.style.opacity = "0";
     }
+    dy -= list.getBoundingClientRect().top - drag.listTop;
     drag.li.style.transform = `translateY(${dy}px)`;
     drag.point = [e.clientX, e.clientY];
     const page = Boolean(pageDrop) && (e.clientX > innerWidth || e.clientX < 0);
