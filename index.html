@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ranga</title>
+  <link rel="icon" href="icon.svg">
+  <style>
+    :root { color-scheme: light dark; --bg: #f7f7f8; --fg: #1b1c1f; --muted: #5d6068; --accent: #2f7d68; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #16171a; --fg: #e6e7ea; --muted: #a2a5ad; --accent: #7cc2a8; } }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 system-ui, sans-serif; }
+    main { max-width: 680px; margin: 0 auto; padding: 64px 16px; text-align: center; }
+    img { width: 96px; height: 96px; }
+    h1 { margin: 16px 0 8px; }
+    p { color: var(--muted); }
+    nav { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: center; margin-top: 32px; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="icon.svg" alt="">
+    <h1>Ranga</h1>
+    <p>Um navegador pessoal pra Linux, com barra lateral, espaços e cara de desktop. Feito sobre o Helium (Chromium sem Google), com a barra lateral no estilo do Arc e Material 3.</p>
+    <p>A sincronização entre aparelhos é opcional: os dados vão cifrados pra uma pasta escondida do seu próprio Google Drive.</p>
+    <nav>
+      <a href="https://github.com/taigakilla/ranga">Código</a>
+      <a href="https://github.com/taigakilla/ranga/releases/latest">Baixar</a>
+      <a href="privacidade.html">Privacidade</a>
+    </nav>
+  </main>
+</body>
+</html>

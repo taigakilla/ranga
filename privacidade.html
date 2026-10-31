@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ranga — Privacidade</title>
+  <style>
+    :root { color-scheme: light dark; --bg: #f7f7f8; --fg: #1b1c1f; --muted: #5d6068; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #16171a; --fg: #e6e7ea; --muted: #a2a5ad; } }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 system-ui, sans-serif; }
+    main { max-width: 680px; margin: 0 auto; padding: 48px 16px; }
+    h1 { margin-top: 0; }
+    h2 { margin-top: 2em; font-size: 1.15em; }
+    p, li { color: var(--fg); }
+    small { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Ranga — Política de privacidade</h1>
+    <p><small>Atualizada em 31 de outubro de 2026.</small></p>
+
+    <p>O Ranga é um navegador para Linux baseado no Helium e no Chromium. Esta página explica o que acontece com os seus dados quando você liga a sincronização com uma conta Google.</p>
+
+    <h2>A sincronização é opcional</h2>
+    <p>Sem conectar uma conta, nada sai do seu computador por causa do Ranga. A sincronização só começa quando você clica em "Conectar" nas configurações.</p>
+
+    <h2>O que o Ranga acessa na sua conta Google</h2>
+    <ul>
+      <li><strong>Pasta de dados do app no seu Google Drive</strong> (<code>drive.appdata</code>): uma pasta escondida que só o Ranga enxerga. O Ranga não vê nem mexe em nenhum outro arquivo do seu Drive.</li>
+      <li><strong>Seu endereço de e-mail</strong>, só para mostrar nas configurações qual conta está conectada.</li>
+    </ul>
+
+    <h2>O que é guardado e como</h2>
+    <p>Favoritos, abas abertas, histórico recente, grupos, espaços que você marcar para sincronizar e a lista de extensões instaladas. Tudo é cifrado no seu computador (AES-256-GCM) antes de ir para o Drive, com uma chave que só você tem: a chave de recuperação mostrada ao ativar. Nem o Google, nem o autor do Ranga conseguem ler esses dados.</p>
+    <p>Senhas não são sincronizadas.</p>
+
+    <h2>Com quem os dados são compartilhados</h2>
+    <p>Com ninguém. Não há servidor do Ranga: os dados vão direto do navegador para o seu Drive. O Ranga não usa os dados para publicidade, não vende nem repassa nada a terceiros e não usa os dados para treinar modelos de IA.</p>
+
+    <h2>Como apagar</h2>
+    <p>Em Configurações → Sincronização → Desconectar, o Ranga apaga do Drive os arquivos deste aparelho e esquece a chave. Para apagar tudo, no Google Drive abra Configurações → Gerenciar apps → Ranga → Opções → Excluir dados ocultos do app, e remova o acesso do Ranga em <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</p>
+
+    <h2>Uso de dados das APIs do Google</h2>
+    <p>O uso e a transferência, para qualquer outro app, de informações recebidas das APIs do Google seguem a <a href="https://developers.google.com/terms/api-services-user-data-policy">Política de dados do usuário dos serviços de API do Google</a>, incluindo os requisitos de uso limitado.</p>
+
+    <h2>Contato</h2>
+    <p><a href="mailto:taigakilla@gmail.com">taigakilla@gmail.com</a></p>
+  </main>
+</body>
+</html>
