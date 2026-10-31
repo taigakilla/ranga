@@ -24,11 +24,15 @@ export function onSyncChange(listener) {
 export function sendEntries(tabs) {
   const urls = tabs.filter((t) => /^https?:\/\//.test(t.url || ""));
   if (!urls.length || !devices.length) return [];
-  return devices.map((device) => ({
+  return [{
     icon: "send",
-    label: `Enviar para ${device.name}`,
-    action: () => { for (const tab of urls) chrome.runtime.sendMessage({ type: "sync-send", device: device.id, tab: { url: tab.url, title: tab.title } }); },
-  }));
+    label: "Enviar para",
+    submenu: devices.map((device) => ({
+      icon: "laptop",
+      label: device.name,
+      action: () => { for (const tab of urls) chrome.runtime.sendMessage({ type: "sync-send", device: device.id, tab: { url: tab.url, title: tab.title } }); },
+    })),
+  }];
 }
 
 export async function initSyncUi(received) {

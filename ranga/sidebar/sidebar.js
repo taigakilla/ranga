@@ -146,8 +146,7 @@ function groupEntries(ids) {
     for (const id of ids) await groups.adopt(id, groupId);
   };
   return [
-    "divider",
-    { heading: "Guardar no grupo" },
+    { heading: "Grupo" },
     ...groups.list().map((g) => ({ icon: g.icon, label: g.name, action: save(g.id) })),
     { icon: "plus", label: "Novo grupo", action: () => containerEditor.open() },
   ];
@@ -157,7 +156,19 @@ function spaceEntries(ids) {
   const current = activeSpace(spaces, windowId).id;
   const others = spaces.spaces.filter((s) => s.id !== current);
   if (!others.length) return [];
-  return ["divider", { heading: "Mover para o espaço" }, ...others.map((space) => ({ icon: space.icon, label: space.name, action: () => moveTabsToSpace(ids, space.id) }))];
+  return [{ heading: "Espaço" }, ...others.map((space) => ({ icon: space.icon, label: space.name, action: () => moveTabsToSpace(ids, space.id) }))];
+}
+
+function moveEntries(ids) {
+  const spaceList = spaceEntries(ids);
+  const groupList = groupEntries(ids);
+  const entries = [...spaceList, ...(spaceList.length && groupList.length ? ["divider"] : []), ...groupList];
+  return entries.length ? [{ icon: "folder-input", label: "Mover para", submenu: entries }] : [];
+}
+
+function elsewhere(ids, tabs) {
+  const entries = [...moveEntries(ids), ...sendEntries(tabs)];
+  return entries.length ? ["divider", ...entries] : [];
 }
 
 function splitEntries(item) {
@@ -193,11 +204,9 @@ async function tabsMenu(ids, x, y) {
     },
     { icon: "copy", label: "Duplicar", action: () => { tabList.clearSelection(); for (const t of tabs) chrome.tabs.duplicate(t.id); } },
     { icon: "link", label: "Copiar links", action: () => navigator.clipboard.writeText(tabs.map((t) => t.url).join("\n")) },
-    ...sendEntries(tabs),
     { icon: "rotate-cw", label: "Recarregar", action: () => { for (const t of tabs) chrome.tabs.reload(t.id); } },
     { icon: "moon", label: "Dormir", action: () => { tabList.clearSelection(); for (const t of tabs) if (!t.active && !t.discarded) chrome.tabs.discard(t.id).catch(() => {}); } },
-    ...groupEntries(ids),
-    ...spaceEntries(ids),
+    ...elsewhere(ids, tabs),
     "divider",
     { icon: "x", label: `Fechar ${tabs.length} abas`, danger: true, action: () => closeTabs(ids) },
   ], x, y);
@@ -212,13 +221,11 @@ function tabMenu(item, x, y, selection) {
     { icon: "pencil", label: "Renomear", action: () => tabList.rename(item.id) },
     { icon: "copy", label: "Duplicar", action: () => chrome.tabs.duplicate(item.id) },
     { icon: "link", label: "Copiar link", action: () => navigator.clipboard.writeText(item.url) },
-    ...sendEntries([item]),
     { icon: "rotate-cw", label: "Recarregar", action: () => chrome.tabs.reload(item.id) },
     ...(item.active || item.asleep ? [] : [{ icon: "moon", label: "Dormir", action: () => chrome.tabs.discard(item.id).catch(() => {}) }]),
     ...(item.audio === "muted" ? [{ icon: "volume-2", label: "Ativar som", action: () => chrome.tabs.update(item.id, { muted: false }) }] : []),
     ...(item.audio === "playing" ? [{ icon: "volume-x", label: "Silenciar", action: () => chrome.tabs.update(item.id, { muted: true }) }] : []),
-    ...groupEntries([item.id]),
-    ...spaceEntries([item.id]),
+    ...elsewhere([item.id], [item]),
     "divider",
     { icon: "copy-x", label: "Fechar as outras", action: () => closeAround(item.id, (i, at) => i !== at) },
     { icon: "arrow-down-to-line", label: "Fechar as de baixo", action: () => closeAround(item.id, (i, at) => i > at) },

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.5.1 — 31/10/2026
+- Menu da aba mais simples: **Mover para ›** (espaços e grupos) e **Enviar para ›** (outros aparelhos) abrem um segundo menu ao lado, no lugar das seções com título.
+
 ## 0.5.0 — 31/10/2026
 
 ### Sincronização entre aparelhos
