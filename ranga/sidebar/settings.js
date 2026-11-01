@@ -223,7 +223,7 @@ async function paintBrowserPrefs() {
   for (const option of document.querySelectorAll("#main-language [data-value]")) {
     option.setAttribute("aria-pressed", String(option.dataset.value === mainLanguage(accept)));
     option.onclick = async () => {
-      await chrome.settingsPrivate.setPref("intl.accept_languages", withMainLanguage(accept, option.dataset.value)).catch(() => {});
+      await chrome.settingsPrivate.setPref("intl.selected_languages", withMainLanguage(prefs.get("intl.selected_languages")?.value ?? accept, option.dataset.value)).catch(() => {});
       paintBrowserPrefs();
     };
   }

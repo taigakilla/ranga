@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.2 — 31/10/2026
+- **Arrastar texto pra barra de abas** abre uma janela nova pesquisando o texto; arrastar um link abre o link numa janela nova.
+- **Apps (PWA) como o WhatsApp não fecham mais sozinhos**: dormir e arquivar abas paradas só vale pras janelas normais.
+- **Português como idioma principal** dos sites por padrão (uma vez, em perfis com inglês na frente). Resolve preços como "R$ 3519.00" no lugar de "R$ 35,19" em extensões que leem o número no formato do idioma.
+- A opção **Idioma principal** agora fica gravada depois de reabrir o Ranga.
+
 ## 0.5.1 — 31/10/2026
 - Menu da aba mais simples: **Mover para ›** (espaços e grupos) e **Enviar para ›** (outros aparelhos) abrem um segundo menu ao lado, no lugar das seções com título.
 

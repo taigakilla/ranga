@@ -456,6 +456,7 @@ body.incognito .space-title .k-icon { color: var(--k-color-tertiary); }
 .ess--drop { outline: 2px solid var(--k-color-primary); outline-offset: 2px; }
 .ess--folder.ess--drop { background: var(--k-color-primary-container); }
 .tabs-wrap--unpin { border-radius: var(--k-shape-large); background: color-mix(in srgb, var(--k-color-error) 10%, transparent); }
+.tabs-wrap--search { border-radius: var(--k-shape-large); background: color-mix(in srgb, var(--k-color-primary) 10%, transparent); outline: 2px dashed var(--k-color-primary); outline-offset: -2px; }
 body.dragging-tab #pins {
   flex-shrink: 0;
   display: block;

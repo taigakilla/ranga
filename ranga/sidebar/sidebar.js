@@ -25,6 +25,7 @@ import { setupDevices } from "./devices.js";
 import { setupPins } from "./pins.js";
 import { setupPlayer } from "./player.js";
 import { setupPopups } from "./popups.js";
+import { setupTextDrop } from "./text-drop.js";
 import { available as rangaPrivate, call } from "./ranga-private.js";
 import { initSyncUi, sendEntries, syncConnected } from "./sync-ui.js";
 
@@ -804,6 +805,7 @@ const extensions = setupExtensions({
 });
 
 setupPopups();
+setupTextDrop(document.getElementById("space-content"), document.querySelector(".tabs-wrap"));
 
 const player = setupPlayer({
   root: document.getElementById("player"),

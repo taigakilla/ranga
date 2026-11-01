@@ -1,5 +1,5 @@
 import { plan, archiveEntry, pushArchive } from "./lifecycle-model.js";
-import { loadSettings } from "./settings-model.js";
+import { loadSettings, mainLanguage, withMainLanguage } from "./settings-model.js";
 import { cleanUrl, markdownLink } from "./link-model.js";
 import { toMap } from "./shortcuts-model.js";
 import { peekTabs } from "./peek-model.js";
@@ -13,7 +13,7 @@ chrome.alarms.create("ranga-lifecycle", { periodInMinutes: 1 });
 async function runLifecycle() {
   const stored = await chrome.storage.local.get(["settings", "spaces", "archive"]);
   const settings = loadSettings(stored.settings);
-  const tabs = await chrome.tabs.query({});
+  const tabs = await chrome.tabs.query({ windowType: "normal" });
   const now = Date.now();
   const { pinLive = {}, containerLive = {} } = await chrome.storage.session.get(["pinLive", "containerLive"]);
   const { sleep, archive } = plan(tabs, now, settings, new Set([...Object.keys(pinLive), ...Object.keys(containerLive)].map(Number)));
@@ -93,9 +93,19 @@ async function acceptServicesSchema() {
   if (consent?.value && schema && schema.value < 1) await chrome.settingsPrivate.setPref("helium.services.schema_version", 1).catch(() => {});
 }
 
+async function portugueseFirst() {
+  if (!chrome.settingsPrivate || !chrome.i18n.getUILanguage().startsWith("pt")) return;
+  if ((await chrome.storage.local.get("languageDefault")).languageDefault) return;
+  const selected = await chrome.settingsPrivate.getPref("intl.selected_languages").catch(() => null);
+  if (!selected) return;
+  if (mainLanguage(selected.value) !== "pt-BR") await chrome.settingsPrivate.setPref("intl.selected_languages", withMainLanguage(selected.value, "pt-BR")).catch(() => {});
+  await chrome.storage.local.set({ languageDefault: true });
+}
+
 applyShortcuts();
 applyLinks();
 acceptServicesSchema();
+portugueseFirst();
 initSync();
 chrome.runtime.onStartup.addListener(() => {
   applyShortcuts();
