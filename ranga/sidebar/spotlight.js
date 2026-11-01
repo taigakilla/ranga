@@ -193,7 +193,8 @@ async function run(chosen) {
   const newTab = mode === "new";
   if (item.kind === "command") {
     await close();
-    if (LOCAL_COMMANDS.includes(item.command)) chrome.runtime.sendMessage({ type: "copy-link", format: item.command, tabId: target?.id }).catch(() => {});
+    if (item.command === "newTabPage") await createTab("chrome://newtab/");
+    else if (LOCAL_COMMANDS.includes(item.command)) chrome.runtime.sendMessage({ type: "copy-link", format: item.command, tabId: target?.id }).catch(() => {});
     else await call("executeCommand", target?.windowId, item.command).catch(() => {});
     return;
   }
@@ -245,7 +246,7 @@ async function open() {
   [target] = await chrome.tabs.query({ active: true, windowId });
   const empty = blank(target?.url);
   if (empty) mode = "current";
-  commands = rangaPrivate && target ? await call("getEnabledCommands", target.windowId).catch(() => []) : [];
+  commands = ["newTabPage", ...(rangaPrivate && target ? await call("getEnabledCommands", target.windowId).catch(() => []) : [])];
   const stored = await chrome.storage.local.get(["spotlightAliases", "settings"]);
   aliases = loadAliases(stored.spotlightAliases);
   privateEngine = target?.incognito ? loadSettings(stored.settings).privateSearchEngine : "";

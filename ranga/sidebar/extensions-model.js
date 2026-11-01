@@ -19,3 +19,13 @@ export function pinnedActions(actions, ids) {
 export function togglePin(ids, id) {
   return ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
 }
+
+export function extensionRows(actions, installed, ownId) {
+  const rows = new Map(actions.map((a) => [a.id, { id: a.id, name: a.name, icon: a.icon, pinnable: true }]));
+  for (const e of installed) {
+    if (e.type !== "extension" || !e.mayDisable) continue;
+    const row = rows.get(e.id) ?? { id: e.id, name: e.name, icon: e.icons?.at(-1)?.url, pinnable: false };
+    rows.set(e.id, { ...row, enabled: e.enabled });
+  }
+  return others([...rows.values()], ownId);
+}

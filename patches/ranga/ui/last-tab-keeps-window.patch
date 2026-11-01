@@ -1,0 +1,23 @@
+Ctrl+W na última aba de uma janela normal abre uma nova aba no lugar dela, em vez de fechar a janela (e o Ranga). Se a última aba já é uma nova aba, não faz nada. A janela só fecha pelo gerenciador de janelas (Super+Q no Hyprland) ou Ctrl+Shift+W. Janela anônima continua fechando.
+
+--- a/chrome/browser/ui/browser_commands.cc
++++ b/chrome/browser/ui/browser_commands.cc
+@@ -1493,6 +1493,18 @@
+     return;
+   }
+ 
++  if (browser->GetType() == BrowserWindowInterface::TYPE_NORMAL &&
++      !browser->GetProfile()->IsOffTheRecord() &&
++      browser->GetTabStripModel()->count() == 1) {
++    content::WebContents* last = active_tab->GetContents();
++    if (last->GetVisibleURL() == GURL(chrome::kChromeUINewTabURL)) {
++      return;
++    }
++    NewTab(browser, NewTabTypes::kNewTabCommand);
++    last->Close();
++    return;
++  }
++
+   // If the selection model consists of only the indices of a single split tab,
+   // decide if just the active tab in the split is closed instead of all tabs in
+   // the split.

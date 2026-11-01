@@ -63,3 +63,4 @@ ranga/ui/private-search-engine.patch
 ranga/ui/back-forward-hint.patch
 ranga/ui/collapsed-sidebar-keys.patch
 ranga/ui/restart-through-launcher.patch
+ranga/ui/last-tab-keeps-window.patch

@@ -1,5 +1,5 @@
 import { mainLanguage, withMainLanguage, loadSettings } from "./settings-model.js";
-import { others, pinnedIds, togglePin } from "./extensions-model.js";
+import { others, pinnedIds, togglePin, extensionRows } from "./extensions-model.js";
 import { available as rangaPrivate, call } from "./ranga-private.js";
 import { loadContainers, createContainer, updateContainer, deleteContainer, CONTAINER_COLORS, CONTAINER_ICONS } from "./containers-model.js";
 import { glyph } from "./kurobe/icons.mjs";
@@ -63,26 +63,54 @@ themePort.onMessage.addListener((msg) => {
 async function paintExtensions() {
   if (!rangaPrivate) return;
   const { id } = await chrome.windows.getCurrent();
-  const actions = others(await call("getExtensionActions", id).catch(() => []), chrome.runtime.id);
-  const stored = await chrome.storage.local.get("pinnedExtensions");
-  let pins = pinnedIds(stored.pinnedExtensions, actions);
-  document.getElementById("extensions-hint").hidden = actions.length === 0;
-  document.getElementById("extension-settings").replaceChildren(...actions.map((action) => {
+  const [all, installed, stored] = await Promise.all([
+    call("getExtensionActions", id).catch(() => []),
+    chrome.management.getAll(),
+    chrome.storage.local.get("pinnedExtensions"),
+  ]);
+  const actions = others(all, chrome.runtime.id);
+  const pins = pinnedIds(stored.pinnedExtensions, actions);
+  const rows = extensionRows(all, installed, chrome.runtime.id);
+  document.getElementById("extensions-hint").hidden = rows.length === 0;
+  document.getElementById("extension-settings").replaceChildren(...rows.map((row) => {
     const label = document.createElement("label");
     label.className = "setting";
     const text = document.createElement("span");
     text.className = "text extension-name";
-    const icon = Object.assign(document.createElement("img"), { src: action.icon, alt: "" });
-    const name = Object.assign(document.createElement("span"), { className: "k-type-panel", textContent: action.name });
+    const icon = Object.assign(document.createElement("img"), { src: row.icon ?? "", alt: "" });
+    icon.onerror = () => icon.replaceWith(Object.assign(document.createElement("span"), { className: "k-icon", textContent: glyph("puzzle") }));
+    const name = Object.assign(document.createElement("span"), { className: "k-type-panel", textContent: row.name });
     text.append(icon, name);
-    const input = Object.assign(document.createElement("input"), { className: "k-switch", type: "checkbox", checked: pins.includes(action.id) });
-    input.addEventListener("change", async () => {
-      pins = togglePin(pins, action.id);
-      await chrome.storage.local.set({ pinnedExtensions: pins });
-    });
-    label.append(text, input);
+    const controls = document.createElement("span");
+    controls.className = "extension-controls";
+    if (row.pinnable) {
+      const pinned = pins.includes(row.id);
+      const pin = document.createElement("button");
+      pin.type = "button";
+      pin.className = "k-icon-button k-icon-button--small k-state extension-pin";
+      pin.title = pinned ? "Desafixar da barra" : "Fixar na barra";
+      pin.setAttribute("aria-pressed", String(pinned));
+      pin.innerHTML = `<span class="k-icon">${glyph(pinned ? "pin-off" : "pin")}</span>`;
+      pin.onclick = async () => {
+        const fresh = await chrome.storage.local.get("pinnedExtensions");
+        await chrome.storage.local.set({ pinnedExtensions: togglePin(pinnedIds(fresh.pinnedExtensions, actions), row.id) });
+      };
+      controls.append(pin);
+    }
+    if (row.enabled !== undefined) {
+      const input = Object.assign(document.createElement("input"), { className: "k-switch", type: "checkbox", checked: row.enabled, title: row.enabled ? "Desligar" : "Ligar" });
+      input.addEventListener("change", () => chrome.management.setEnabled(row.id, input.checked).catch(refreshExtensions));
+      controls.append(input);
+    }
+    label.append(text, controls);
     return label;
   }));
+}
+
+let extensionsTimer;
+function refreshExtensions() {
+  clearTimeout(extensionsTimer);
+  extensionsTimer = setTimeout(paintExtensions, 120);
 }
 
 function next(list, value) {
@@ -254,6 +282,10 @@ for (const group of document.querySelectorAll(".k-segmented[data-pref]")) {
   }
 }
 chrome.settingsPrivate?.onPrefsChanged.addListener(paintBrowserPrefs);
+for (const event of ["onEnabled", "onDisabled", "onInstalled", "onUninstalled"]) chrome.management?.[event].addListener(refreshExtensions);
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.pinnedExtensions) refreshExtensions();
+});
 
 paint();
 paintExtensions();

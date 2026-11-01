@@ -34,6 +34,8 @@ h1 { margin: 0; }
 .setting > :last-child { flex: none; }
 .extension-name { flex-direction: row; align-items: center; gap: var(--k-space-md); }
 .extension-name img { width: 24px; height: 24px; }
+.extension-controls { display: flex; align-items: center; gap: var(--k-space-md); }
+.extension-pin[aria-pressed="true"] { color: var(--k-color-primary); }
 .container-row { cursor: default; }
 .container-name { flex-direction: row; align-items: center; gap: var(--k-space-sm); }
 .container-name .k-text-field { max-width: 240px; }

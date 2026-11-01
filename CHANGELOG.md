@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.3 — 01/11/2026
+- **Configurações → Extensões**: cada extensão ganha um alfinete (fixar na barra lateral) e um botão que liga e desliga a extensão de verdade. Antes o botão só fixava, e parecia que desligava as extensões.
+- **Nova aba pelo spotlight**: comando "Nova aba"; digitar `nt` e Enter abre uma direto.
+- **Ctrl+W na última aba não fecha mais o Ranga**: abre uma nova aba no lugar. A janela fecha com Super+Q (ou Ctrl+Shift+W). Janela anônima fecha como antes.
+
 ## 0.5.2 — 31/10/2026
 - **Arrastar texto pra barra de abas** abre uma janela nova pesquisando o texto; arrastar um link abre o link numa janela nova.
 - **Apps (PWA) como o WhatsApp não fecham mais sozinhos**: dormir e arquivar abas paradas só vale pras janelas normais.

@@ -2,6 +2,7 @@ import { toNavigation } from "./tabs-model.js";
 import { rangaUrl } from "./settings-model.js";
 
 export const COMMANDS = [
+  { command: "newTabPage", title: "Nova aba", icon: "plus", words: "new tab pagina inicial", alias: "nt" },
   { command: "installPwa", title: "Instalar como app", icon: "app-window", words: "pwa aplicativo install" },
   { command: "openInApp", title: "Abrir no app", icon: "app-window", words: "pwa aplicativo" },
   { command: "createShortcut", title: "Criar atalho", icon: "external-link", words: "shortcut desktop app" },
@@ -39,14 +40,15 @@ export function matchCommands(query, enabled = []) {
   return COMMANDS
     .filter((c) => enabled.includes(c.command))
     .filter((c) => {
-      const words = fold(`${c.title} ${c.words}`).split(/[\s-]+/);
+      const words = fold(`${c.title} ${c.words} ${c.alias ?? ""}`).split(/[\s-]+/);
       return terms.every((t) => words.some((w) => w.startsWith(t)));
     })
-    .map(({ words: _, ...c }) => {
+    .map(({ words: _, alias, ...c }) => {
       const query = terms.join(" ");
       const title = fold(c.title);
-      const strong = title.startsWith(query) || (query.length >= 4 && title.split(/[\s-]+/).some((w) => w.startsWith(terms[0])) && terms.every((t) => title.includes(t)));
-      return { kind: "command", ...c, strong };
+      const exact = alias === query;
+      const strong = exact || title.startsWith(query) || (query.length >= 4 && title.split(/[\s-]+/).some((w) => w.startsWith(terms[0])) && terms.every((t) => title.includes(t)));
+      return { kind: "command", ...c, strong, exact };
     });
 }
 
@@ -142,10 +144,10 @@ export function suggestions(query, { tabs = [], bookmarks = [], history = [], co
     : { kind: "search", title: searchTitle(text, resolved), text };
   const found = nav.kind === "url" ? [] : matchCommands(text, commands).slice(0, 3).map(({ strong, ...c }) => ({ ...c, strong }));
   const strong = found[0]?.strong ? [found.shift()] : [];
-  const completion = nav.kind === "url" ? null : completeHost(text, { tabs, bookmarks, history });
+  const completion = nav.kind === "url" || strong[0]?.exact ? null : completeHost(text, { tabs, bookmarks, history });
   const same = (row) => completion && row.kind === "url" && hostOf(row.url)?.hostname.replace(/^www\./, "") === completion.title;
   const more = nav.kind === "url" ? [] : suggested.filter((s) => fold(s) !== fold(text)).map(suggestedRow).filter((row) => !same(row));
-  const top = [...(completion ? [completion] : []), ...strong, first, ...(hint ? [hint] : []), ...found, ...more].slice(0, TOP).map(({ strong: _, ...c }) => c);
+  const top = [...(completion ? [completion] : []), ...strong, first, ...(hint ? [hint] : []), ...found, ...more].slice(0, TOP).map(({ strong: _, exact: __, ...c }) => c);
   return [...top, ...sectioned(entries(q, { tabs, bookmarks, history }))];
 }
 

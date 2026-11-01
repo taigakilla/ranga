@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { others, pinnedIds, pinnedActions, togglePin, MAX_DEFAULT_PINS } from "./extensions-model.js";
+import { others, pinnedIds, pinnedActions, togglePin, extensionRows, MAX_DEFAULT_PINS } from "./extensions-model.js";
 
 const actions = [
   { id: "ublock", name: "uBlock Origin" },
@@ -27,4 +27,19 @@ test("fixadas seguem a ordem salva e ignoram extensões removidas", () => {
 test("fixar e desafixar", () => {
   assert.deepEqual(togglePin(["a"], "b"), ["a", "b"]);
   assert.deepEqual(togglePin(["a", "b"], "a"), ["b"]);
+});
+
+test("linhas juntam as fixáveis com as que dá pra ligar e desligar", () => {
+  const installed = [
+    { id: "onepassword", name: "1Password", type: "extension", enabled: true, mayDisable: true },
+    { id: "dark", name: "Dark Reader", type: "extension", enabled: false, mayDisable: true, icons: [{ url: "p16" }, { url: "p128" }] },
+    { id: "app", name: "App", type: "hosted_app", enabled: true, mayDisable: true },
+    { id: "ranga", name: "Ranga — barra lateral", type: "extension", enabled: true, mayDisable: true },
+  ];
+  const enabledActions = actions.filter((a) => a.id !== "dark");
+  assert.deepEqual(extensionRows(enabledActions, installed, "ranga"), [
+    { id: "onepassword", name: "1Password", icon: undefined, pinnable: true, enabled: true },
+    { id: "dark", name: "Dark Reader", icon: "p128", pinnable: false, enabled: false },
+    { id: "ublock", name: "uBlock Origin", icon: undefined, pinnable: true },
+  ]);
 });

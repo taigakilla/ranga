@@ -145,3 +145,11 @@ test("informações do site, captura, QR code e perfis aparecem quando habilitad
   assert.equal(suggestions("perfis", { commands: enabled })[0].command, "profiles");
   assert.ok(!suggestions("perfis", { commands: [] }).some((s) => s.kind === "command"));
 });
+
+test("nt abre uma nova aba direto, na frente até do site completado", () => {
+  const history = [{ title: "NTP", url: "https://ntp.org/", visitCount: 9 }];
+  const nova = { kind: "command", command: "newTabPage", title: "Nova aba", icon: "plus" };
+  assert.deepEqual(suggestions("nt", { history, commands: ["newTabPage"] })[0], nova);
+  assert.deepEqual(suggestions("nova aba", { commands: ["newTabPage"] })[0], nova);
+  assert.equal(suggestions("nt", { history, commands: [] })[0].kind, "url");
+});
