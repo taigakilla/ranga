@@ -1,0 +1,21 @@
+Controles de mídia do sistema (MPRIS): o serviço passa a se chamar org.mpris.MediaPlayer2.ranga.instanceN e informa DesktopEntry "ranga", pra barra do sistema mostrar o ícone do Ranga (o ranga.desktop) em vez do do Chromium.
+
+--- a/components/system_media_controls/linux/system_media_controls_linux.cc
++++ b/components/system_media_controls/linux/system_media_controls_linux.cc
+@@ -138,7 +138,7 @@
+ }  // namespace
+ 
+ const char kMprisAPIServiceNameFormatString[] =
+-    "org.mpris.MediaPlayer2.chromium.instance%i";
++    "org.mpris.MediaPlayer2.ranga.instance%i";
+ const char kMprisAPIObjectPath[] = "/org/mpris/MediaPlayer2";
+ const char kMprisAPIInterfaceName[] = "org.mpris.MediaPlayer2";
+ const char kMprisAPIPlayerInterfaceName[] = "org.mpris.MediaPlayer2.Player";
+@@ -290,6 +290,7 @@
+   SetProperty<"b">("HasTrackList", false);
+ 
+   SetProperty<"s">("Identity", product_name_);
++  SetProperty<"s">("DesktopEntry", "ranga");
+   SetProperty<"as">("SupportedUriSchemes", {});
+   SetProperty<"as">("SupportedMimeTypes", {});
+ 

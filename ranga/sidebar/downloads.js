@@ -1,6 +1,6 @@
 import { glyph } from "./kurobe/icons.mjs";
 import { fileName, progress, status, active, overall } from "./downloads-model.js";
-import { pop } from "./motion.js";
+import { pop, squash, animate, reducedMotion } from "./motion.js";
 import { toast, hideToast } from "./toast.js";
 
 const RING = 2 * Math.PI * 16;
@@ -14,7 +14,7 @@ function iconButton(icon, title, run) {
   return b;
 }
 
-export function setupDownloads({ button, popover, windowId }) {
+export function setupDownloads({ button, popover, windowId, peek }) {
   const list = popover.querySelector(".downloads-list");
   const fill = button.querySelector(".ring-fill");
   let items = [];
@@ -120,22 +120,37 @@ export function setupDownloads({ button, popover, windowId }) {
     return win?.id === windowId();
   }
 
-  async function announce(item) {
-    if (popover.hidden && (await focused())) toast(`Baixando ${fileName(item)}`);
+  async function drop() {
+    const rect = button.getBoundingClientRect();
+    const file = Object.assign(document.createElement("span"), { className: "download-drop k-icon", textContent: glyph("file-down") });
+    file.style.left = `${rect.left + rect.width / 2}px`;
+    file.style.top = `${rect.top + rect.height / 2}px`;
+    document.body.append(file);
+    const fall = animate(file, [
+      { opacity: 0, transform: "translate(-50%, -50%) translateY(-96px) scale(0.6) rotate(-12deg)" },
+      { opacity: 1, offset: 0.35 },
+      { opacity: 1, transform: "translate(-50%, -50%) scale(1)" },
+    ], "spatial-slow");
+    await fall?.finished.catch(() => {});
+    squash(button.querySelector(".k-icon"));
+    const fade = file.animate([{ opacity: 1, transform: "translate(-50%, -50%) scale(1)" }, { opacity: 0, transform: "translate(-50%, -50%) scale(0.4)" }], { duration: 160, easing: "ease-in" });
+    await fade.finished.catch(() => {});
+    file.remove();
   }
 
   chrome.downloads.onCreated.addListener(async (item) => {
     await load();
-    pop(button);
-    if (item.filename) announce(item);
+    if (!(await focused())) return pop(button);
+    await peek(2600);
+    if (reducedMotion()) pop(button);
+    else drop();
   });
   chrome.downloads.onChanged.addListener(async (delta) => {
     await load();
-    if (delta.filename && !delta.filename.previous && delta.state?.current !== "complete") announce({ filename: delta.filename.current });
     if (delta.state?.current !== "complete" || !(await focused())) return;
-    const [item] = await chrome.downloads.search({ id: delta.id });
+    await peek(4000);
     pop(button);
-    toast(`${fileName(item)} baixado`, { label: "Abrir", run: () => chrome.downloads.open(delta.id) });
+    if (popover.hidden) toast("Download concluído", { label: "Abrir", run: () => chrome.downloads.open(delta.id) });
   });
   chrome.downloads.onErased.addListener(load);
 

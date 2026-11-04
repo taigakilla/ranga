@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.4 — 04/11/2026
+- **Download começando**: um ícone de arquivo cai com mola no botão de downloads. Com a barra recolhida, ela espia um instante e recolhe sozinha.
+- **Avisos de download sem o nome espremido**: ao terminar, só "Download concluído" com Abrir.
+- **Mini player com capa**: a capa da mídia (thumbnail do YouTube, capa de música) aparece grande no topo, com o fundo na cor dela. Minimizar e fechar ficam no canto.
+- **PiP do mini player** abre e fecha (antes não fazia nada quando o vídeo já estava em PiP, como depois do PiP automático) e fica aceso enquanto aberto.
+- **Ícone do Ranga nos controles de mídia do sistema** (MPRIS) no lugar do ícone do Chromium.
+- **Barra de progresso ondulada do shell no mini player**: a onda ocupa só o que já tocou, afina nas pontas e achata quando pausa. Tem marcador em pílula, e arrastar busca a posição.
+- **Mini player minimizado**: o botão de minimizar deixa ele numa linha só, com o nome do que toca e os controles (tocar e próxima), e uma linha fina de progresso embaixo. Fica lembrado.
+- **Ao vivo no mini player**: transmissões ao vivo (live do YouTube, jogo na HBO Max) mostram "Ao vivo" no lugar do tempo. Atrás do ao vivo, ele mostra quanto e um toque volta pra ponta.
+- **Mini player com duas mídias**: pausar a que está no player não troca mais pela outra que já tocava. Só troca quando outra começa a tocar.
+- **Mini player sem capa**: o nome ganha a linha toda. Mudo e PiP desceram pra linha dos controles, e ir para a aba é clicar no nome ou na capa.
+
 ## 0.5.3 — 01/11/2026
 - **Configurações → Extensões**: cada extensão ganha um alfinete (fixar na barra lateral) e um botão que liga e desliga a extensão de verdade. Antes o botão só fixava, e parecia que desligava as extensões.
 - **Nova aba pelo spotlight**: comando "Nova aba"; digitar `nt` e Enter abre uma direto.

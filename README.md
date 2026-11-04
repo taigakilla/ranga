@@ -8,7 +8,7 @@
 
 Feito sobre o [Helium](https://github.com/imputnet/helium) (Chromium sem Google), com a barra lateral no estilo do Arc, Material 3 e as cores do tema do sistema.
 
-![versão](https://img.shields.io/badge/versão-0.5.3-7cc2a8?style=flat-square)
+![versão](https://img.shields.io/badge/versão-0.5.4-7cc2a8?style=flat-square)
 ![Chromium](https://img.shields.io/badge/Chromium-156-4c8bf5?style=flat-square)
 ![Linux](https://img.shields.io/badge/Linux-x86__64-e0a64b?style=flat-square)
 ![licença](https://img.shields.io/badge/licença-GPL--3.0-b07ce8?style=flat-square)

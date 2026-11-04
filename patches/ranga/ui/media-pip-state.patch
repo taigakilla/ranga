@@ -1,0 +1,34 @@
+Mini player: rangaPrivate.getMediaSessions diz se a mídia está em picture-in-picture (pip), pro botão de PiP abrir ou fechar e mostrar o estado, inclusive depois do PiP automático.
+
+--- a/chrome/common/extensions/api/ranga_private.idl
++++ b/chrome/common/extensions/api/ranga_private.idl
+@@ -43,7 +43,8 @@
+   // Media a tab plays, as its page describes it (navigator.mediaSession).
+   // <code>actions</code> holds what it can do now: play, pause, previous,
+   // next, seek, pip. Times are in seconds; <code>duration</code> is 0 when
+-  // unknown or live.
++  // unknown or live. <code>pip</code> is true while the media is in
++  // picture-in-picture.
+   dictionary MediaSessionState {
+     long tabId;
+     DOMString title;
+@@ -54,6 +55,7 @@
+     double duration;
+     double position;
+     double rate;
++    boolean pip;
+   };
+ 
+   // Where a find in the page stands.
+--- a/chrome/browser/extensions/api/ranga_private/ranga_private_api.cc
++++ b/chrome/browser/extensions/api/ranga_private/ranga_private_api.cc
+@@ -850,6 +850,9 @@
+     entry.album = base::UTF16ToUTF8(metadata.album);
+     entry.playing = info->playback_state ==
+                     media_session::mojom::MediaPlaybackState::kPlaying;
++    entry.pip = info->picture_in_picture_state ==
++                media_session::mojom::MediaPictureInPictureState::
++                    kInPictureInPicture;
+     for (MediaSessionAction action : session->GetMediaSessionActionsSync()) {
+       switch (action) {
+         case MediaSessionAction::kPlay:

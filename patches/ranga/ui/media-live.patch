@@ -1,0 +1,41 @@
+Mini player: rangaPrivate.getMediaSessions diz se a mídia não tem fim (live), como uma transmissão ao vivo, pra barra mostrar "Ao vivo" no lugar do tempo.
+
+--- a/chrome/common/extensions/api/ranga_private.idl
++++ b/chrome/common/extensions/api/ranga_private.idl
+@@ -45,7 +45,8 @@
+   // next, seek, pip. Times are in seconds; <code>duration</code> is 0 when
+   // unknown or live. <code>pip</code> is true while the media is in
+   // picture-in-picture. <code>artwork</code> is the page's cover image URL,
+-  // or empty.
++  // or empty. <code>live</code> is true when the media has no end, as a live
++  // stream.
+   dictionary MediaSessionState {
+     long tabId;
+     DOMString title;
+@@ -58,6 +59,7 @@
+     double rate;
+     boolean pip;
+     DOMString artwork;
++    boolean live;
+   };
+ 
+   // Where a find in the page stands.
+--- a/chrome/browser/extensions/api/ranga_private/ranga_private_api.cc
++++ b/chrome/browser/extensions/api/ranga_private/ranga_private_api.cc
+@@ -942,6 +942,7 @@
+     entry.duration = 0;
+     entry.position = 0;
+     entry.rate = 0;
++    entry.live = false;
+     if (std::optional<media_session::MediaPosition> position =
+             session->GetMediaSessionPosition()) {
+       const double duration = position->duration().InSecondsF();
+@@ -950,6 +951,8 @@
+         entry.position = std::clamp(position->GetPosition().InSecondsF(), 0.0,
+                                     duration);
+         entry.rate = position->playback_rate();
++      } else {
++        entry.live = true;
+       }
+     }
+     RangaMediaArtwork::CreateForWebContents(contents);

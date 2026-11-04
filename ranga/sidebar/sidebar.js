@@ -817,6 +817,7 @@ setupDownloads({
   button: document.getElementById("downloads-button"),
   popover: document.getElementById("downloads-popover"),
   windowId: () => windowId,
+  peek,
 });
 
 setupDevices({
@@ -889,6 +890,19 @@ function paintSidebarMode(mode) {
   const label = menu.querySelector(".toggle-sidebar-label");
   label.textContent = mode === "docked" ? "Recolher barra lateral" : "Fixar barra lateral";
   label.previousElementSibling.textContent = glyph(mode === "docked" ? "panel-left-close" : "panel-left-open");
+}
+
+let peekTimer;
+async function peek(duration) {
+  if (sidebarMode === "docked") return;
+  clearTimeout(peekTimer);
+  peekTimer = setTimeout(() => {
+    peekTimer = null;
+    if (sidebarMode === "floating" && !document.documentElement.matches(":hover")) setSidebarMode("collapsed");
+  }, duration);
+  if (sidebarMode !== "collapsed") return;
+  await setSidebarMode("floating");
+  await new Promise((resolve) => setTimeout(resolve, 260));
 }
 
 async function rememberSidebar() {
