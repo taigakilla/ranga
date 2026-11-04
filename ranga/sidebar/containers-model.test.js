@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  loadContainers, createContainer, updateContainer, deleteContainer, membership, containerSnapshot, lostTabs, slug, DEFAULT_CONTAINERS,
+  loadContainers, createContainer, updateContainer, deleteContainer, membership, slug, DEFAULT_CONTAINERS,
   addPage, removePage, updatePage, findPage, toggleGroup, pageIds, pagesOf, restorePages, pageTitle,
 } from "./containers-model.js";
 
@@ -24,32 +24,6 @@ test("editar mantém o id e ignora nome vazio; apagar remove", () => {
   const edited = updateContainer(list, "trabalho", { name: "", color: "#000000", id: "outro" });
   assert.deepEqual(edited[0], { id: "trabalho", name: "Trabalho", color: "#000000", icon: "briefcase" });
   assert.deepEqual(deleteContainer(list, "trabalho").map((c) => c.id), ["pessoal"]);
-});
-
-test("snapshot guarda todas as abas na ordem, com o container ou vazio", () => {
-  const members = membership([{ tabId: 1, container: "trabalho" }, { tabId: 2, container: "" }]);
-  const tabs = [{ id: 2, index: 1, url: "https://github.com/" }, { id: 1, index: 0, url: "https://mail.google.com/" }];
-  assert.deepEqual(containerSnapshot(tabs, members), [
-    { url: "https://mail.google.com/", container: "trabalho" },
-    { url: "https://github.com/", container: "" },
-  ]);
-});
-
-test("depois de reiniciar, reconhece pela ordem quem estava no container, mesmo com URL repetida", () => {
-  const shot = [
-    { url: "https://mail.google.com/", container: "" },
-    { url: "https://mail.google.com/", container: "trabalho" },
-    { url: "https://x.com/", container: "apagado" },
-  ];
-  const tabs = [
-    { id: 9, index: 2, url: "https://x.com/", active: false, pinned: false },
-    { id: 7, index: 0, url: "https://mail.google.com/", active: true, pinned: false },
-    { id: 8, index: 1, url: "https://mail.google.com/", active: false, pinned: true },
-  ];
-  assert.deepEqual(lostTabs(shot, tabs, new Map(), DEFAULT_CONTAINERS), [
-    { tabId: 8, url: "https://mail.google.com/", index: 1, active: false, pinned: true, container: "trabalho" },
-  ]);
-  assert.deepEqual(lostTabs(shot, tabs, new Map([[8, "trabalho"]]), DEFAULT_CONTAINERS), []);
 });
 
 test("o container guarda páginas como as fixadas", () => {

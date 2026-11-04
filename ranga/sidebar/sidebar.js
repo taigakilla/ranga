@@ -30,6 +30,7 @@ import { available as rangaPrivate, call } from "./ranga-private.js";
 import { initSyncUi, sendEntries, syncConnected } from "./sync-ui.js";
 
 const SPACE_COLORS = [null, "#71b1ec", "#7cc2a8", "#d9c08a", "#d49a78", "#d8737a", "#b59ad4"];
+const NEW_TAB = "chrome://newtab/";
 
 const address = document.getElementById("address");
 const menu = document.getElementById("menu");
@@ -50,6 +51,7 @@ let menuSpaceId = null;
 let lastWheel = 0;
 let sidebarMode = "docked";
 let incognito = false;
+let closedIn = null;
 let rightAligned = false;
 let leaveTimer;
 let ready = false;
@@ -110,10 +112,19 @@ function queueSnapshot() {
 async function saveSpaces() {
   const { spaces: list, active, lastTab, tabSpace, tabTitle } = spaces;
   await chrome.storage.local.set({ spaces: { spaces: list, active, lastTab, tabSpace, tabTitle } });
-  const tabs = await saveSnapshot();
-  await containers.save(tabs);
+  await saveSnapshot();
+  syncSpaces();
   await pins.save();
   await groups.persist();
+}
+
+function syncSpaces() {
+  if (!containers.available) return;
+  call("syncSpaces", windowId, {
+    container: currentSession(),
+    tabs: Object.entries(spaces.tabSpace).map(([id, space]) => ({ tabId: Number(id), space })),
+    spaces: spaces.spaces.filter((s) => s.session).map((s) => ({ container: s.session, name: s.name })),
+  }).catch(() => {});
 }
 
 function currentSession() {
@@ -131,8 +142,16 @@ async function intoSession(tabId, spaceId) {
   await containers.load();
   if (containers.sessionOfTab(tabId) === session) return tabId;
   const tab = await chrome.tabs.get(tabId).catch(() => null);
-  if (!tab || !/^https?:/.test(tab.url || tab.pendingUrl || "")) return tabId;
+  const url = tab?.url || tab?.pendingUrl || "";
+  if (!tab || !(/^https?:/.test(url) || url === NEW_TAB)) return tabId;
   return containers.reopen(tab, session);
+}
+
+function installApp() {
+  const space = activeSpace(spaces, windowId);
+  return call("installApp", windowId, incognito ? "" : space.session ?? "", space.name)
+    .catch(() => call("executeCommand", windowId, "installPwa"))
+    .catch(() => {});
 }
 
 async function activeTab() {
@@ -523,6 +542,7 @@ async function switchSpace(spaceId, direction = 0) {
   const visible = visibleTabs(spaces, tabs, windowId);
   const target = visible.find((t) => t.id === spaces.lastTab[spaceId]) ?? visible[0];
   if (target) await chrome.tabs.update(target.id, { active: true });
+  else if (currentSession()) await containers.open({ url: NEW_TAB, container: currentSession() });
   else await chrome.tabs.create({ windowId });
   if (direction) animate(content, [{ opacity: 0, transform: `translateX(${direction * 36}px)` }, { opacity: 1, transform: "none" }], "spatial-default");
   render();
@@ -661,8 +681,8 @@ document.getElementById("new-tab").onclick = () => {
 let groupTab = null;
 
 async function blankTab(spaceId, active) {
-  const session = containers.available && !incognito ? sessionOfSpace(spaces, spaceId) : "";
-  return session ? containers.open({ container: session, active }) : (await chrome.tabs.create({ windowId, active })).id;
+  if (!containers.available || incognito) return (await chrome.tabs.create({ windowId, active })).id;
+  return containers.open({ container: sessionOfSpace(spaces, spaceId), active });
 }
 
 async function newTabInGroup(groupId) {
@@ -700,8 +720,9 @@ document.getElementById("new-tab").oncontextmenu = (e) => {
 async function reopen(entries) {
   for (const entry of entries) {
     const space = spaces.spaces.some((s) => s.id === entry.space) ? entry.space : activeSpace(spaces, windowId).id;
-    const session = containers.available && !incognito ? sessionOfSpace(spaces, space) : "";
-    const id = session ? await containers.open({ url: entry.url, container: session, active: false }) : (await chrome.tabs.create({ url: entry.url, windowId, active: false })).id;
+    const id = containers.available && !incognito
+      ? await containers.open({ url: entry.url, container: sessionOfSpace(spaces, space), active: false })
+      : (await chrome.tabs.create({ url: entry.url, windowId, active: false })).id;
     await moveTabToSpace(id, space);
   }
   render();
@@ -789,7 +810,7 @@ for (const item of menu.querySelectorAll("[data-action]")) {
     if (action === "ranga-settings") chrome.runtime.openOptionsPage();
     else if (action === "ranga-archive") archivePanel.open();
     else if (action === "ranga-toggle-sidebar") toggleSidebar();
-    else if (action === "ranga-install-pwa") call("executeCommand", windowId, "installPwa").catch(() => {});
+    else if (action === "ranga-install-pwa") installApp();
     else if (action === "ranga-new-window") chrome.windows.create({});
     else if (action === "ranga-new-incognito") chrome.windows.create({ incognito: true });
     else if (action === "ranga-profiles") call("executeCommand", windowId, "profiles").catch(() => {});
@@ -843,11 +864,21 @@ document.addEventListener("wheel", (e) => {
 }, { passive: true });
 
 chrome.tabs.onCreated.addListener(async (tab) => {
-  if (ready && tab.windowId === windowId && !spaces.tabSpace[tab.id]) await moveTabToSpace(tab.id, activeSpace(spaces, windowId).id);
+  if (ready && tab.windowId === windowId && !spaces.tabSpace[tab.id]) {
+    await containers.load();
+    const session = containers.sessionOfTab(tab.id);
+    const owner = spaces.spaces.find((s) => (s.session ?? "") === session)?.id;
+    const space = owner && (session || /^https?:/.test(tab.url || tab.pendingUrl || "")) ? owner : activeSpace(spaces, windowId).id;
+    await moveTabToSpace(space === owner ? tab.id : await intoSession(tab.id, space), space);
+  }
   render();
 });
 chrome.tabs.onRemoved.addListener(async (tabId, info) => {
   if (!ready) return;
+  if (info.windowId === windowId && !info.isWindowClosing) {
+    const space = spaceOfTab(spaces, tabId, windowId);
+    if (space === activeSpace(spaces, windowId).id) closedIn = { space, at: Date.now() };
+  }
   spaces = forgetTab(spaces, tabId);
   if (info.windowId === windowId && !info.isWindowClosing) await saveSpaces();
   render();
@@ -858,9 +889,25 @@ chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
 chrome.tabs.onMoved.addListener((tabId, info) => {
   if (info.windowId === windowId) queueSnapshot();
 });
+async function stayInSpace(spaceId) {
+  const tabs = await chrome.tabs.query({ windowId });
+  const left = tabs.filter((t) => spaceOfTab(spaces, t.id, windowId) === spaceId);
+  const target = left.reduce((best, t) => (!best || (t.lastAccessed ?? 0) > (best.lastAccessed ?? 0) ? t : best), null);
+  if (target) await chrome.tabs.update(target.id, { active: true });
+  else if (currentSession()) await containers.open({ url: NEW_TAB, container: currentSession() });
+  else await chrome.tabs.create({ windowId });
+}
+
 chrome.tabs.onActivated.addListener(async ({ tabId, windowId: w }) => {
   if (ready && w === windowId) {
     const space = spaceOfTab(spaces, tabId, windowId);
+    const closed = closedIn && Date.now() - closedIn.at < 1000 ? closedIn.space : null;
+    closedIn = null;
+    if (closed && space !== closed) {
+      await stayInSpace(closed);
+      render();
+      return;
+    }
     if (space !== activeSpace(spaces, windowId).id) {
       spaces = setActive(spaces, windowId, space);
       await saveSpaces();
@@ -1058,8 +1105,9 @@ if (!windowTabs.some((t) => spaces.tabSpace[t.id])) {
 for (const tab of windowTabs) {
   if (!spaces.tabSpace[tab.id]) spaces = assignTab(spaces, tab.id, activeSpace(spaces, windowId).id);
 }
-for (const { from, to } of await containers.heal(windowTabs)) {
-  spaces = assignTab(spaces, to, spaceOfTab(spaces, from, windowId));
+for (const tab of await chrome.tabs.query({ windowId, pinned: false })) {
+  const space = spaceOfTab(spaces, tab.id, windowId);
+  if (sessionOfSpace(spaces, space)) spaces = assignTab(spaces, await intoSession(tab.id, space), space);
 }
 await pins.load(await chrome.tabs.query({ windowId }));
 await containers.load();

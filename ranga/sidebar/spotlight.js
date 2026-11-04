@@ -5,7 +5,7 @@ import { toNavigation } from "./tabs-model.js";
 import { glyph } from "./kurobe/icons.mjs";
 import { animate, painted } from "./motion.js";
 import { available as rangaPrivate, call } from "./ranga-private.js";
-import { sessionOf, withSessions } from "./spaces-model.js";
+import { activeSpace, sessionOf, withSessions } from "./spaces-model.js";
 import { remoteMatches, remoteHistoryMatches } from "./sync-model.js";
 
 const LOCAL_COMMANDS = ["copyCleanLink", "copyMarkdown"];
@@ -187,6 +187,13 @@ async function createTab(url) {
   return (await chrome.tabs.create({ url, windowId })).id;
 }
 
+async function installApp() {
+  const windowId = target?.windowId;
+  const { spaces } = await chrome.storage.local.get("spaces");
+  const space = spaces?.spaces && !target?.incognito ? activeSpace(withSessions({ active: {}, ...spaces }), windowId) : null;
+  return call("installApp", windowId, space?.session ?? "", space?.name ?? "").catch(() => call("executeCommand", windowId, "installPwa"));
+}
+
 async function run(chosen) {
   let item = chosen;
   if (!item) return;
@@ -194,6 +201,7 @@ async function run(chosen) {
   if (item.kind === "command") {
     await close();
     if (item.command === "newTabPage") await createTab("chrome://newtab/");
+    else if (item.command === "installPwa") await installApp().catch(() => {});
     else if (LOCAL_COMMANDS.includes(item.command)) chrome.runtime.sendMessage({ type: "copy-link", format: item.command, tabId: target?.id }).catch(() => {});
     else await call("executeCommand", target?.windowId, item.command).catch(() => {});
     return;

@@ -8,7 +8,7 @@
 
 Feito sobre o [Helium](https://github.com/imputnet/helium) (Chromium sem Google), com a barra lateral no estilo do Arc, Material 3 e as cores do tema do sistema.
 
-![versão](https://img.shields.io/badge/versão-0.5.4-7cc2a8?style=flat-square)
+![versão](https://img.shields.io/badge/versão-0.5.5-7cc2a8?style=flat-square)
 ![Chromium](https://img.shields.io/badge/Chromium-156-4c8bf5?style=flat-square)
 ![Linux](https://img.shields.io/badge/Linux-x86__64-e0a64b?style=flat-square)
 ![licença](https://img.shields.io/badge/licença-GPL--3.0-b07ce8?style=flat-square)
@@ -31,7 +31,8 @@ O Chromium guarda abas numa faixa no topo, configurações em dois lugares e tra
 
 ### A barra lateral
 
-- **Espaços** com ícone, cor e sessão própria: cada espaço tem seus logins e cookies. Ctrl+Shift+← / → ou rolar de lado troca de espaço; cada um lembra a última aba.
+- **Espaços** com ícone, cor e sessão própria: cada espaço tem seus logins e cookies. Ctrl+Shift+← / → ou rolar de lado troca de espaço; cada um lembra a última aba, e fechar uma aba fica no mesmo espaço.
+- **Apps por espaço**: "Instalar como app" instala o PWA no espaço em que você está, com a conta dele e a própria entrada no menu de apps ("App — Espaço"). O mesmo app pode ficar em dois espaços, um com cada conta, sem outro perfil.
 - **Fixadas** em grade de cartões, com pastas. Um link aberto de uma fixada aparece num **Peek** por cima da página.
 - **Hoje**: as abas do dia. Paradas dormem e as esquecidas são arquivadas, com Desfazer.
 - **Favoritos**, downloads com anel de progresso, extensões fixadas e o endereço da aba atual.

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Ranga — barra lateral",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjqMNSPTO1DOCiSruYXZLLVI7anTUnswkevnXpGlJBMO+kDSzKBShi5O1vNKT9irSEuIbNF9ZeQJ/huffFQ7GObg+jTaDpoEcnlALzoG40tAu1aPFbAYvAgZVByCu+gG6Ob6EnnI6mgj964pc+7H7Umoi/tybow3jyKIGiESZZgJVjXI9vlrZ/6Ngdvjyz6wpu/ExkjupuW7nKWeKaGA0oJiw9kjV88qTrz3/0KMbEOM5b992L1xWY5CIzziGpvZdgMcFVmSeds2y9eycuV8IAvfbeB80fj1PcaKZwB6F8mWFkQNnitIhOulAnY2WhlGcG1z52juy6b1xyqJ/RIUq1wIDAQAB",
   "permissions": [
     "tabs",

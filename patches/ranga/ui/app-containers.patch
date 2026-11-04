@@ -1,0 +1,997 @@
+Espaços e containers na base. Apps por espaço: o mesmo PWA abre com a conta de cada espaço, sem outro perfil. Abrir o app com --ranga-container=<container> (junto do --app-id) coloca a janela nos cookies e logins desse container; ela ganha a classe chrome-<app>-<perfil>-<container> e só reaproveita janelas do mesmo container. rangaPrivate.installApp instala (ou abre no app) o site da aba como app do espaço: o espaço fica gravado em <perfil>/Ranga Space Apps.json e o atalho do sistema ganha uma entrada por espaço ("<app> — <espaço>"), enquanto a entrada principal só aparece se o app também foi instalado no espaço sem container. Desinstalar pelo menu do app tira só o espaço daquela janela quando o app está em outro espaço. A sessão guarda o container de cada aba (extra data ranga_container), então abas e janelas de app voltam no container certo ao reabrir o Ranga.
+
+rangaPrivate.syncSpaces diz ao navegador os espaços da janela: abas novas sem quem as abriu (Ctrl+T, link de outro app, chrome.tabs.create) já nascem no container do espaço ativo, fechar a aba ativa passa pra aba usada por último no mesmo espaço, e renomear um espaço renomeia as entradas dos apps dele.
+
+--- a/chrome/browser/ranga/ranga_containers.h
++++ b/chrome/browser/ranga/ranga_containers.h
+@@ -5,10 +5,14 @@
+ #ifndef CHROME_BROWSER_RANGA_RANGA_CONTAINERS_H_
+ #define CHROME_BROWSER_RANGA_RANGA_CONTAINERS_H_
+ 
++#include <map>
++#include <memory>
+ #include <string>
+ 
+ #include "base/files/file_path.h"
+ #include "base/memory/scoped_refptr.h"
++#include "base/no_destructor.h"
++#include "base/supports_user_data.h"
+ #include "content/public/browser/browser_context.h"
+ #include "content/public/browser/security_principal.h"
+ #include "content/public/browser/site_instance.h"
+@@ -17,6 +21,44 @@
+ #include "url/gurl.h"
+ 
+ inline constexpr char kRangaContainerPartitionDomain[] = "ranga-container";
++inline constexpr char kRangaContainerSwitch[] = "ranga-container";
++inline constexpr char kRangaContainerSessionKey[] = "ranga_container";
++
++inline std::string& RangaLaunchingContainer() {
++  static base::NoDestructor<std::string> container;
++  return *container;
++}
++
++inline std::map<int32_t, std::string>& RangaWindowContainers() {
++  static base::NoDestructor<std::map<int32_t, std::string>> containers;
++  return *containers;
++}
++
++class RangaTabSpace : public base::SupportsUserData::Data {
++ public:
++  explicit RangaTabSpace(std::string space) : space_(std::move(space)) {}
++
++  static std::string Of(content::WebContents* contents) {
++    const RangaTabSpace* data =
++        contents ? static_cast<const RangaTabSpace*>(
++                       contents->GetUserData(UserDataKey()))
++                 : nullptr;
++    return data ? data->space_ : std::string();
++  }
++
++  static void Set(content::WebContents* contents, std::string space) {
++    contents->SetUserData(UserDataKey(),
++                          std::make_unique<RangaTabSpace>(std::move(space)));
++  }
++
++ private:
++  static const void* UserDataKey() {
++    static const int key = 0;
++    return &key;
++  }
++
++  std::string space_;
++};
+ 
+ inline content::StoragePartitionConfig RangaContainerPartition(
+     content::BrowserContext* context,
+--- a/chrome/browser/ui/web_applications/web_app_launch_process.cc
++++ b/chrome/browser/ui/web_applications/web_app_launch_process.cc
+@@ -4,6 +4,7 @@
+ 
+ #include "chrome/browser/ui/web_applications/web_app_launch_process.h"
+ 
++#include "base/auto_reset.h"
+ #include "base/debug/crash_logging.h"
+ #include "base/files/file_path.h"
+ #include "base/memory/values_equivalent.h"
+@@ -12,16 +13,19 @@
+ #include "build/build_config.h"
+ #include "chrome/browser/apps/app_service/launch_utils.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ranga/ranga_containers.h"
+ #include "chrome/browser/ui/browser_window.h"
+ #include "chrome/browser/ui/browser_window/public/browser_collection.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
++#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+ #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
+ #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
+ #include "chrome/browser/ui/navigator/browser_navigator.h"
+ #include "chrome/browser/ui/navigator/browser_navigator_params.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
+ #include "chrome/browser/ui/tabs/tab_strip_user_gesture_details.h"
++#include "chrome/browser/ui/unload_controller.h"
+ #include "chrome/browser/ui/web_applications/app_browser_controller.h"
+ #include "chrome/browser/ui/web_applications/share_target_utils.h"
+ #include "chrome/browser/ui/web_applications/web_app_launch_navigation_handle_user_data.h"
+@@ -30,6 +34,7 @@
+ #include "chrome/browser/web_applications/web_app.h"
+ #include "chrome/browser/web_applications/web_app_registrar.h"
+ #include "chrome/browser/web_applications/web_app_tab_helper.h"
++#include "chrome/common/chrome_switches.h"
+ #include "components/services/app_service/public/cpp/app_launch_params.h"
+ #include "components/services/app_service/public/cpp/app_launch_util.h"
+ #include "components/services/app_service/public/cpp/intent.h"
+@@ -153,6 +158,13 @@
+     return nullptr;
+   }
+ 
++  base::AutoReset<std::string> container(
++      &RangaLaunchingContainer(),
++      params_->command_line.GetSwitchValueASCII(switches::kAppId) ==
++              params_->app_id
++          ? params_->command_line.GetSwitchValueASCII(kRangaContainerSwitch)
++          : RangaLaunchingContainer());
++
+   // Place new windows on the specified display.
+   std::optional<display::ScopedDisplayForNewWindows> scoped_display;
+   if (params_->display_id != display::kInvalidDisplayId) {
+@@ -465,7 +477,22 @@
+     return nullptr;
+   }
+ 
+-  return AppBrowserController::FindForWebApp(*profile_, params_->app_id);
++  BrowserWindowInterface* browser_for_web_app = nullptr;
++  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
++      [&](BrowserWindowInterface* browser) {
++        if (UnloadController::From(browser)->is_attempting_to_close_browser() ||
++            browser->GetType() != BrowserWindowInterface::TYPE_APP ||
++            browser->GetProfile() != &profile_.get() ||
++            !AppBrowserController::IsForWebApp(browser, params_->app_id) ||
++            RangaContainerOf(
++                browser->GetTabStripModel()->GetActiveWebContents()) !=
++                RangaLaunchingContainer()) {
++          return true;
++        }
++        browser_for_web_app = browser;
++        return false;
++      });
++  return browser_for_web_app;
+ }
+ 
+ BrowserWindowInterface* WebAppLaunchProcess::CreateBrowserForLaunch() {
+--- a/chrome/browser/ui/web_applications/web_app_launch_utils.cc
++++ b/chrome/browser/ui/web_applications/web_app_launch_utils.cc
+@@ -11,12 +11,14 @@
+ 
+ #include "base/check.h"
+ #include "base/check_deref.h"
++#include "base/auto_reset.h"
+ #include "base/check_op.h"
+ #include "base/command_line.h"
+ #include "base/debug/dump_without_crashing.h"
+ #include "base/feature_list.h"
+ #include "base/files/file_path.h"
+ #include "base/functional/bind.h"
++#include "base/functional/callback_helpers.h"
+ #include "base/json/values_util.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/memory/weak_ptr.h"
+@@ -29,6 +31,7 @@
+ #include "base/strings/stringprintf.h"
+ #include "base/strings/to_string.h"
+ #include "base/task/sequenced_task_runner.h"
++#include "base/task/thread_pool.h"
+ #include "base/time/time.h"
+ #include "base/types/optional_util.h"
+ #include "base/values.h"
+@@ -38,6 +41,8 @@
+ #include "chrome/browser/apps/link_capturing/enable_link_capturing_infobar_delegate.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/profiles/profiles_state.h"
++#include "chrome/browser/ranga/ranga_containers.h"
++#include "chrome/browser/ranga/ranga_space_apps.h"
+ #include "chrome/browser/sessions/app_session_service.h"
+ #include "chrome/browser/sessions/app_session_service_factory.h"
+ #include "chrome/browser/sessions/session_service_base.h"
+@@ -67,6 +72,7 @@
+ #include "chrome/browser/web_applications/locks/app_lock.h"
+ #include "chrome/browser/web_applications/mojom/user_display_mode.mojom-shared.h"
+ #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
++#include "chrome/browser/web_applications/os_integration/os_integration_sub_manager.h"
+ #include "chrome/browser/web_applications/web_app_command_scheduler.h"
+ #include "chrome/browser/web_applications/web_app_constants.h"
+ #include "chrome/browser/web_applications/web_app_filter.h"
+@@ -534,6 +540,32 @@
+   // Incognito tabs reparent correctly, but remain incognito without any
+   // indication to the user, so disallow it.
+   DCHECK(!profile->IsOffTheRecord());
++  base::AutoReset<std::string> container(&RangaLaunchingContainer(),
++                                         RangaContainerOf(contents));
++  std::optional<RangaSpaceInstall>& space_install = RangaPendingSpaceInstall();
++  if (space_install && space_install->profile_path == profile->GetPath() &&
++      space_install->container == RangaLaunchingContainer() &&
++      base::TimeTicks::Now() - space_install->at < base::Minutes(10)) {
++    base::ThreadPool::PostTaskAndReply(
++        FROM_HERE, {base::MayBlock()},
++        base::BindOnce(&AddRangaSpaceApp, profile->GetPath(), app_id,
++                       *space_install),
++        base::BindOnce(
++            [](base::WeakPtr<Profile> profile, const webapps::AppId& app_id) {
++              WebAppProvider* provider =
++                  profile ? WebAppProvider::GetForWebApps(profile.get())
++                          : nullptr;
++              if (!provider) {
++                return;
++              }
++              SynchronizeOsOptions options;
++              options.force_create_shortcuts = true;
++              provider->scheduler().SynchronizeOsIntegration(
++                  app_id, base::DoNothing(), options);
++            },
++            profile->GetWeakPtr(), app_id));
++    space_install.reset();
++  }
+ 
+   // Clear navigation history that occurred before the user most recently
+   // entered the app's scope. The minimal-ui Back button will be initially
+--- a/chrome/browser/ui/web_applications/web_app_browser_controller.cc
++++ b/chrome/browser/ui/web_applications/web_app_browser_controller.cc
+@@ -18,6 +18,7 @@
+ #include "base/strings/strcat.h"
+ #include "base/strings/string_util.h"
+ #include "base/strings/utf_string_conversions.h"
++#include "base/task/thread_pool.h"
+ #include "base/time/time.h"
+ #include "build/build_config.h"
+ #include "chrome/browser/apps/app_service/app_service_proxy.h"
+@@ -25,6 +26,8 @@
+ #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
+ #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ranga/ranga_containers.h"
++#include "chrome/browser/ranga/ranga_space_apps.h"
+ #include "chrome/browser/ui/browser_commands.h"
+ #include "chrome/browser/ui/browser_window.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+@@ -39,6 +42,7 @@
+ #include "chrome/browser/web_applications/proto/web_app.pb.h"
+ #include "chrome/browser/web_applications/ui_manager/update_dialog_types.h"
+ #include "chrome/browser/web_applications/url_pattern_with_regex_matcher.h"
++#include "chrome/browser/web_applications/os_integration/os_integration_sub_manager.h"
+ #include "chrome/browser/web_applications/web_app_command_scheduler.h"
+ #include "chrome/browser/web_applications/web_app_constants.h"
+ #include "chrome/browser/web_applications/web_app_filter.h"
+@@ -729,9 +733,34 @@
+ 
+ void WebAppBrowserController::Uninstall(
+     webapps::WebappUninstallSource webapp_uninstall_source) {
+-  provider_->ui_manager().PresentUserUninstallDialog(
+-      app_id(), webapp_uninstall_source, BrowserWindow::FromBrowser(browser()),
+-      base::DoNothing());
++  base::ThreadPool::PostTaskAndReplyWithResult(
++      FROM_HERE, {base::MayBlock()},
++      base::BindOnce(&RemoveRangaSpaceApp, browser()->GetProfile()->GetPath(),
++                     app_id(),
++                     RangaContainerOf(
++                         browser()->GetTabStripModel()->GetActiveWebContents())),
++      base::BindOnce(
++          [](base::WeakPtr<BrowserWindowInterface> browser,
++             base::WeakPtr<WebAppProvider> provider,
++             const webapps::AppId& app_id,
++             webapps::WebappUninstallSource source, bool kept) {
++            if (!browser || !provider) {
++              return;
++            }
++            if (!kept) {
++              provider->ui_manager().PresentUserUninstallDialog(
++                  app_id, source, BrowserWindow::FromBrowser(browser.get()),
++                  base::DoNothing());
++              return;
++            }
++            SynchronizeOsOptions options;
++            options.force_create_shortcuts = true;
++            provider->scheduler().SynchronizeOsIntegration(
++                app_id, base::DoNothing(), options);
++            browser->GetWindow()->Close();
++          },
++          browser()->GetWeakPtr(), provider_->AsWeakPtr(), app_id(),
++          webapp_uninstall_source));
+ }
+ 
+ bool WebAppBrowserController::IsInstalled() const {
+--- a/chrome/browser/ui/navigator/browser_navigator.cc
++++ b/chrome/browser/ui/navigator/browser_navigator.cc
+@@ -574,11 +574,11 @@
+       params.opener ? params.opener->GetSiteInstance()
+                     : tab_util::GetSiteInstanceForNewTab(
+                           params.browser->GetProfile(), url);
++  content::RenderFrameHost* initiator = nullptr;
+   if (!params.opener && params.initiator_frame_token) {
+-    content::RenderFrameHost* initiator =
+-        content::RenderFrameHost::FromFrameToken(
+-            content::GlobalRenderFrameHostToken(
+-                params.initiator_process_id, *params.initiator_frame_token));
++    initiator = content::RenderFrameHost::FromFrameToken(
++        content::GlobalRenderFrameHostToken(params.initiator_process_id,
++                                            *params.initiator_frame_token));
+     if (scoped_refptr<content::SiteInstance> container =
+             RangaContainerSiteInstanceFor(
+                 initiator ? content::WebContents::FromRenderFrameHost(initiator)
+@@ -587,6 +587,24 @@
+       initial_site_instance_for_new_contents = std::move(container);
+     }
+   }
++  std::string window_container;
++  if (!params.opener && !initiator &&
++      (url.SchemeIsHTTPOrHTTPS() || url == GURL(chrome::kChromeUINewTabURL))) {
++    auto it = RangaWindowContainers().find(params.browser->GetSessionID().id());
++    if (it != RangaWindowContainers().end()) {
++      window_container = it->second;
++    }
++  }
++  if (!params.opener && !RangaLaunchingContainer().empty()) {
++    window_container = RangaLaunchingContainer();
++  }
++  if (!window_container.empty()) {
++    initial_site_instance_for_new_contents =
++        content::SiteInstance::CreateForFixedStoragePartition(
++            params.browser->GetProfile(), url,
++            RangaContainerPartition(params.browser->GetProfile(),
++                                    window_container));
++  }
+ 
+   WebContents::CreateParams create_params(
+       params.browser->GetProfile(), initial_site_instance_for_new_contents);
+--- a/chrome/browser/ui/views/frame/browser_native_widget_aura_linux.cc
++++ b/chrome/browser/ui/views/frame/browser_native_widget_aura_linux.cc
+@@ -6,6 +6,7 @@
+ 
+ #include "base/functional/bind.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ranga/ranga_containers.h"
+ #include "chrome/browser/ranga/ranga_links.h"
+ #include "chrome/browser/shell_integration_linux.h"
+ #include "chrome/browser/ui/browser_init_state.h"
+@@ -71,6 +72,9 @@
+     params.wayland_app_id = shell_integration_linux::GetXdgAppIdForWebApp(
+         BrowserInitState::From(&browser)->create_params().app_name,
+         browser.GetProfile()->GetPath());
++    if (!RangaLaunchingContainer().empty()) {
++      params.wayland_app_id += "-" + RangaLaunchingContainer();
++    }
+   } else {
+     params.wayland_app_id = params.wm_class_class;
+   }
+--- a/chrome/browser/ui/tabs/tab_strip_model.cc
++++ b/chrome/browser/ui/tabs/tab_strip_model.cc
+@@ -118,6 +118,7 @@
+ #include "content/public/browser/render_widget_host.h"
+ #include "content/public/browser/render_widget_host_view.h"
+ #include "content/public/browser/web_contents.h"
++#include "chrome/browser/ranga/ranga_containers.h"
+ #include "content/public/common/url_constants.h"
+ #include "media/base/media_switches.h"
+ #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
+@@ -5203,6 +5204,25 @@
+       tab_to_remove->GetGroup();
+   std::optional<int> next_selected_index =
+       DetermineNewSelectedIndex(tab_to_remove);
++  if (const std::string space = RangaTabSpace::Of(tab_to_remove->GetContents());
++      !space.empty() && next_selected_index &&
++      RangaTabSpace::Of(GetWebContentsAt(*next_selected_index >= index
++                                             ? *next_selected_index + 1
++                                             : *next_selected_index)) !=
++          space) {
++    int best = kNoTab;
++    for (int i = 0; i < count(); ++i) {
++      if (i != index && RangaTabSpace::Of(GetWebContentsAt(i)) == space &&
++          (best == kNoTab ||
++           GetWebContentsAt(i)->GetLastActiveTimeTicks() >
++               GetWebContentsAt(best)->GetLastActiveTimeTicks())) {
++        best = i;
++      }
++    }
++    if (best != kNoTab) {
++      next_selected_index = best > index ? best - 1 : best;
++    }
++  }
+   const bool removed_tab_is_split = tab_to_remove->IsSplit();
+   if (removed_tab_is_split) {
+     next_selected_index = GetIndexOfTab(
+--- a/chrome/browser/web_applications/os_integration/web_app_shortcut_linux.cc
++++ b/chrome/browser/web_applications/os_integration/web_app_shortcut_linux.cc
+@@ -14,6 +14,7 @@
+ #include "base/base_paths.h"
+ #include "base/check_is_test.h"
+ #include "base/environment.h"
++#include "base/files/file_enumerator.h"
+ #include "base/files/file_path.h"
+ #include "base/files/file_util.h"
+ #include "base/files/scoped_temp_dir.h"
+@@ -34,8 +35,11 @@
+ #include "base/strings/string_number_conversions.h"
+ #include "base/strings/string_util.h"
+ #include "base/strings/to_string.h"
++#include "base/strings/utf_string_conversions.h"
+ #include "base/task/task_runner.h"
+ #include "base/threading/scoped_blocking_call.h"
++#include "chrome/browser/ranga/ranga_containers.h"
++#include "chrome/browser/ranga/ranga_space_apps.h"
+ #include "chrome/browser/shell_integration.h"
+ #include "chrome/browser/shell_integration_linux.h"
+ #include "chrome/browser/web_applications/os_integration/os_integration_test_override.h"
+@@ -478,6 +482,56 @@
+   return result;
+ }
+ 
++namespace {
++
++void DeleteRangaSpaceShortcuts(base::Environment* env,
++                               const base::FilePath& profile_path,
++                               const std::string& app_id) {
++  base::FileEnumerator files(
++      base::nix::GetXDGDataWriteLocation(env).Append("applications"),
++      /*recursive=*/false, base::FileEnumerator::FILES,
++      GetShortcutFileName(profile_path, app_id) + "-*.desktop");
++  for (base::FilePath file = files.Next(); !file.empty(); file = files.Next()) {
++    DeleteShortcutInApplicationsMenu(file.BaseName(),
++                                     base::FilePath(kDirectoryFilename));
++  }
++}
++
++bool CreateRangaSpaceShortcuts(base::Environment* env,
++                               const ShortcutInfo& shortcut_info,
++                               const base::FilePath& chrome_exe_path,
++                               const std::string& app_name,
++                               const std::string& icon_name,
++                               const RangaAppSpaces& spaces,
++                               const base::FilePath& directory_filename,
++                               const std::string& directory_contents) {
++  bool success = true;
++  for (const auto& [container, name] : spaces.spaces) {
++    base::CommandLine command = shell_integration::CommandLineArgsForLauncher(
++        shortcut_info.url, shortcut_info.app_id, shortcut_info.profile_path,
++        "");
++    command.SetProgram(chrome_exe_path);
++    command.AppendSwitchASCII(kRangaContainerSwitch, container);
++    std::string contents =
++        shell_integration_linux::GetDesktopFileContentsForCommand(
++            command, app_name, shortcut_info.url,
++            shortcut_info.title + u" — " + base::UTF8ToUTF16(name), icon_name,
++            "", "", false, "", {});
++    std::string filename =
++        GetShortcutFileName(shortcut_info.profile_path, shortcut_info.app_id) +
++        "-" + container;
++    base::i18n::ReplaceIllegalCharactersInPath(&filename, '_');
++    base::ReplaceChars(filename, " ", "_", &filename);
++    success = CreateShortcutInApplicationsMenu(
++                  env, base::FilePath(filename + ".desktop"), contents,
++                  directory_filename, directory_contents) &&
++              success;
++  }
++  return success;
++}
++
++}  // namespace
++
+ bool CreateDesktopShortcut(base::Environment* env,
+                            const ShortcutInfo& shortcut_info,
+                            const ShortcutLocations& creation_locations) {
+@@ -617,18 +671,36 @@
+     mime_types.push_back("x-scheme-handler/" + protocol_handler);
+   }
+ 
++  std::optional<RangaAppSpaces> spaces =
++      shortcut_info.app_id.empty()
++          ? std::nullopt
++          : RangaSpacesOfApp(shortcut_info.profile_path, shortcut_info.app_id);
++
+   // Set NoDisplay=true if hidden. This will hide the application from
+   // user-facing menus.
+   std::string contents = shell_integration_linux::GetDesktopFileContents(
+       chrome_exe_path, app_name, shortcut_info.url, shortcut_info.app_id,
+       shortcut_info.title, icon_name, shortcut_info.profile_path, "",
+       base::JoinString(mime_types, ";"),
+-      creation_locations.applications_menu_location == APP_MENU_LOCATION_HIDDEN,
++      spaces ? !spaces->main
++             : creation_locations.applications_menu_location ==
++                   APP_MENU_LOCATION_HIDDEN,
+       "", std::move(shortcut_info.actions));
+   success = CreateShortcutInApplicationsMenu(env, shortcut_filename, contents,
+                                              directory_filename,
+                                              directory_contents) &&
+             success;
++  if (!shortcut_info.app_id.empty()) {
++    DeleteRangaSpaceShortcuts(env, shortcut_info.profile_path,
++                              shortcut_info.app_id);
++  }
++  if (spaces) {
++    success = CreateRangaSpaceShortcuts(env, shortcut_info, chrome_exe_path,
++                                        app_name, icon_name, *spaces,
++                                        directory_filename,
++                                        directory_contents) &&
++              success;
++  }
+   if (success) {
+     RecordCreateShortcut(CreateShortcutResult::kSuccess);
+   }
+@@ -730,6 +802,7 @@
+   if (!test_override || GetInstalledLaunchXdgUtilityForTesting()) {
+     deleted_from_application_menu = DeleteShortcutInApplicationsMenu(
+         shortcut_filename, base::FilePath(kDirectoryFilename));
++    DeleteRangaSpaceShortcuts(env, profile_path, extension_id);
+   }
+ 
+   bool deleted_from_icon_storage = true;
+--- a/chrome/browser/sessions/session_service_base.cc
++++ b/chrome/browser/sessions/session_service_base.cc
+@@ -22,6 +22,7 @@
+ #include "chrome/browser/apps/app_service/web_contents_app_id_utils.h"
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ranga/ranga_containers.h"
+ #include "chrome/browser/sessions/session_service_base_observer.h"
+ #include "chrome/browser/sessions/session_service_log.h"
+ #include "chrome/browser/sessions/session_service_utils.h"
+@@ -280,6 +281,11 @@
+   }
+   SetTabWindow(session_tab_helper->window_id(),
+                session_tab_helper->session_id());
++  if (std::string container = RangaContainerOf(contents); !container.empty()) {
++    ScheduleCommand(sessions::CreateAddTabExtraDataCommand(
++        session_tab_helper->session_id(), kRangaContainerSessionKey,
++        container));
++  }
+   std::string app_id = apps::GetAppIdForWebContents(contents);
+   if (!app_id.empty()) {
+     SetTabExtensionAppID(session_tab_helper->window_id(),
+@@ -632,6 +638,12 @@
+       sessions::CreateLastActiveTimeCommand(session_id,
+                                             tab->GetLastActiveTime()));
+ 
++  if (std::string container = RangaContainerOf(tab); !container.empty()) {
++    command_storage_manager()->AppendRebuildCommand(
++        sessions::CreateAddTabExtraDataCommand(
++            session_id, kRangaContainerSessionKey, container));
++  }
++
+   // TODO(stahon@microsoft.com) This might be movable to SessionService
+   // when Chrome OS uses AppSessionService for app restores.
+   // For now it needs to stay to support SessionService restoring apps.
+--- a/chrome/browser/sessions/session_restore.cc
++++ b/chrome/browser/sessions/session_restore.cc
+@@ -16,6 +16,7 @@
+ #include <string_view>
+ #include <utility>
+ 
++#include "base/auto_reset.h"
+ #include "base/command_line.h"
+ #include "base/containers/flat_map.h"
+ #include "base/debug/alias.h"
+@@ -43,6 +44,7 @@
+ #include "chrome/browser/buildflags.h"
+ #include "chrome/browser/prefs/session_startup_pref.h"
+ #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
++#include "chrome/browser/ranga/ranga_containers.h"
+ #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/profiles/profile_attributes_entry.h"
+@@ -846,6 +848,17 @@
+           show_state = ui::mojom::WindowShowState::kNormal;
+           has_visible_browser = true;
+         }
++        const std::map<std::string, std::string>* first_tab =
++            window->tabs.empty() ? nullptr : &window->tabs[0]->extra_data;
++        auto container_it =
++            first_tab ? first_tab->find(kRangaContainerSessionKey)
++                      : std::map<std::string, std::string>::const_iterator();
++        base::AutoReset<std::string> container(
++            &RangaLaunchingContainer(),
++            window->type == sessions::SessionWindow::TYPE_APP && first_tab &&
++                    container_it != first_tab->end()
++                ? container_it->second
++                : std::string());
+         browser = CreateRestoredBrowser(
+             BrowserTypeForWindowType(window->type), window->bounds,
+             window->workspace, window->visible_on_all_workspaces, show_state,
+--- a/chrome/browser/ui/browser_tabrestore.cc
++++ b/chrome/browser/ui/browser_tabrestore.cc
+@@ -4,6 +4,7 @@
+ 
+ #include "chrome/browser/ui/browser_tabrestore.h"
+ 
++#include <algorithm>
+ #include <map>
+ #include <memory>
+ #include <utility>
+@@ -13,6 +14,7 @@
+ #include "chrome/browser/apps/app_service/web_contents_app_id_utils.h"
+ #include "chrome/browser/glic/glic_tab_restore_helper.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ranga/ranga_containers.h"
+ #include "chrome/browser/sessions/session_restore.h"
+ #include "chrome/browser/sessions/session_service_base.h"
+ #include "chrome/browser/sessions/session_service_lookup.h"
+@@ -72,6 +74,16 @@
+       content::CreateMapWithDefaultSessionStorageNamespace(
+           browser->GetProfile(), session_storage_namespace);
+   WebContents::CreateParams create_params(browser->GetProfile());
++  if (auto container = extra_data.find(kRangaContainerSessionKey);
++      container != extra_data.end() && !container->second.empty() &&
++      !navigations.empty()) {
++    const SerializedNavigationEntry& entry = navigations[std::min<size_t>(
++        std::max(selected_navigation, 0), navigations.size() - 1)];
++    create_params.site_instance =
++        content::SiteInstance::CreateForFixedStoragePartition(
++            browser->GetProfile(), entry.virtual_url(),
++            RangaContainerPartition(browser->GetProfile(), container->second));
++  }
+   create_params.initially_hidden = initially_hidden;
+   create_params.desired_renderer_state =
+       WebContents::CreateParams::kNoRendererProcess;
+--- a/chrome/common/extensions/api/ranga_private.idl
++++ b/chrome/common/extensions/api/ranga_private.idl
+@@ -35,6 +35,27 @@
+     boolean? pinned;
+   };
+ 
++  // The space of a tab, as the sidebar keeps it.
++  dictionary TabSpace {
++    long tabId;
++    DOMString space;
++  };
++
++  // A space with its own container.
++  dictionary SpaceName {
++    DOMString container;
++    DOMString name;
++  };
++
++  // The window's spaces: the active space's container (new tabs open in it),
++  // the space of each tab (closing a tab keeps to its space) and the names of
++  // the spaces with a container (their apps' launcher entries).
++  dictionary SpacesState {
++    DOMString container;
++    TabSpace[] tabs;
++    SpaceName[] spaces;
++  };
++
+   dictionary TabContainer {
+     long tabId;
+     DOMString container;
+@@ -256,6 +277,22 @@
+     // navigations, and the tabs and windows it opens inherit it.
+     static void createTab(CreateTabOptions options, TabIdCallback callback);
+ 
++    // Installs the active tab's site as an app of a space, or opens it in the
++    // app when it is installed. An app of a space opens in the space's
++    // container and gets its own launcher entry, named after the space; ""
++    // is the space without a container.
++    static void installApp(
++        long windowId,
++        DOMString container,
++        DOMString name,
++        optional DoneCallback callback);
++
++    // Tells the browser the window's spaces (see SpacesState).
++    static void syncSpaces(
++        long windowId,
++        SpacesState state,
++        optional DoneCallback callback);
++
+     // The window's tabs that are in a container.
+     static void getTabContainers(
+         long windowId,
+--- a/chrome/browser/extensions/api/ranga_private/BUILD.gn
++++ b/chrome/browser/extensions/api/ranga_private/BUILD.gn
+@@ -26,6 +26,7 @@
+     "//chrome/browser/ui/toasts",
+     "//chrome/browser/ui/toasts/api:toasts",
+     "//chrome/browser/ui/toolbar",
++    "//chrome/browser/web_applications",
+     "//chrome/common/extensions/api",
+     "//components/find_in_page",
+     "//components/omnibox/browser",
+--- a/chrome/browser/extensions/api/ranga_private/ranga_private_api.h
++++ b/chrome/browser/extensions/api/ranga_private/ranga_private_api.h
+@@ -210,6 +210,24 @@
+   ResponseAction Run() override;
+ };
+ 
++class RangaPrivateInstallAppFunction : public ExtensionFunction {
++ public:
++  DECLARE_EXTENSION_FUNCTION("rangaPrivate.installApp", UNKNOWN)
++
++ protected:
++  ~RangaPrivateInstallAppFunction() override = default;
++  ResponseAction Run() override;
++};
++
++class RangaPrivateSyncSpacesFunction : public ExtensionFunction {
++ public:
++  DECLARE_EXTENSION_FUNCTION("rangaPrivate.syncSpaces", UNKNOWN)
++
++ protected:
++  ~RangaPrivateSyncSpacesFunction() override = default;
++  ResponseAction Run() override;
++};
++
+ class RangaPrivateGetTabContainersFunction : public ExtensionFunction {
+  public:
+   DECLARE_EXTENSION_FUNCTION("rangaPrivate.getTabContainers", UNKNOWN)
+--- a/chrome/browser/extensions/api/ranga_private/ranga_private_api.cc
++++ b/chrome/browser/extensions/api/ranga_private/ranga_private_api.cc
+@@ -14,6 +14,7 @@
+ #include <vector>
+ 
+ #include "base/base64.h"
++#include "base/no_destructor.h"
+ #include "base/json/json_reader.h"
+ #include "base/functional/callback_helpers.h"
+ #include "base/environment.h"
+@@ -22,6 +23,7 @@
+ #include "base/strings/string_number_conversions.h"
+ #include "base/strings/string_util.h"
+ #include "base/strings/utf_string_conversions.h"
++#include "base/task/thread_pool.h"
+ #include "chrome/app/chrome_command_ids.h"
+ #include "chrome/browser/autocomplete/autocomplete_classifier_factory.h"
+ #include "chrome/browser/extensions/extension_tab_util.h"
+@@ -30,6 +32,7 @@
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ranga/ranga_containers.h"
+ #include "chrome/browser/ranga/ranga_links.h"
++#include "chrome/browser/ranga/ranga_space_apps.h"
+ #include "chrome/browser/search_engines/template_url_service_factory.h"
+ #include "chrome/browser/tab_list/tab_list_interface.h"
+ #include "chrome/browser/ui/browser_commands.h"
+@@ -51,6 +54,11 @@
+ #include "chrome/browser/ui/toasts/toast_controller.h"
+ #include "chrome/browser/ui/toolbar/toolbar_action_view_model.h"
+ #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
++#include "chrome/browser/web_applications/os_integration/os_integration_sub_manager.h"
++#include "chrome/browser/web_applications/web_app_command_scheduler.h"
++#include "chrome/browser/web_applications/web_app_filter.h"
++#include "chrome/browser/web_applications/web_app_provider.h"
++#include "chrome/browser/web_applications/web_app_registrar.h"
+ #include "chrome/common/extensions/api/ranga_private.h"
+ #include "chrome/common/pref_names.h"
+ #include "chrome/common/webui_url_constants.h"
+@@ -850,6 +858,99 @@
+   return RespondNow(WithArguments(ExtensionTabUtil::GetTabId(raw)));
+ }
+ 
++ExtensionFunction::ResponseAction RangaPrivateInstallAppFunction::Run() {
++  auto params = ranga_private::InstallApp::Params::Create(args());
++  EXTENSION_FUNCTION_VALIDATE(params);
++
++  std::string error;
++  BrowserWindowInterface* browser =
++      BrowserForWindow(this, params->window_id, &error);
++  if (!browser) {
++    return RespondNow(Error(std::move(error)));
++  }
++  web_app::WebAppProvider* provider =
++      web_app::WebAppProvider::GetForWebApps(browser->GetProfile());
++  content::WebContents* contents =
++      browser->GetTabStripModel()->GetActiveWebContents();
++  if (!provider || !contents) {
++    return RespondNow(Error(kNoCommandError, "installApp"));
++  }
++  const bool installed =
++      provider->registrar_unsafe()
++          .FindBestAppWithUrlInScope(
++              contents->GetLastCommittedURL(),
++              web_app::WebAppFilter::IsAppSurfaceableToUser())
++          .has_value();
++  RangaPendingSpaceInstall() = RangaSpaceInstall{
++      browser->GetProfile()->GetPath(), params->container, params->name,
++      installed, base::TimeTicks::Now()};
++  chrome::ExecuteCommand(browser,
++                         installed ? IDC_OPEN_IN_PWA_WINDOW : IDC_INSTALL_PWA);
++  return RespondNow(NoArguments());
++}
++
++ExtensionFunction::ResponseAction RangaPrivateSyncSpacesFunction::Run() {
++  auto params = ranga_private::SyncSpaces::Params::Create(args());
++  EXTENSION_FUNCTION_VALIDATE(params);
++
++  std::string error;
++  BrowserWindowInterface* browser =
++      BrowserForWindow(this, params->window_id, &error);
++  if (!browser) {
++    return RespondNow(Error(std::move(error)));
++  }
++  const ranga_private::SpacesState& state = params->state;
++  RangaWindowContainers()[browser->GetSessionID().id()] = state.container;
++
++  std::map<int, std::string> space_of;
++  for (const ranga_private::TabSpace& tab : state.tabs) {
++    space_of[tab.tab_id] = tab.space;
++  }
++  TabStripModel* model = browser->GetTabStripModel();
++  for (int i = 0; i < model->count(); ++i) {
++    content::WebContents* contents = model->GetWebContentsAt(i);
++    auto it = space_of.find(ExtensionTabUtil::GetTabId(contents));
++    if (it != space_of.end()) {
++      RangaTabSpace::Set(contents, it->second);
++    }
++  }
++
++  std::map<std::string, std::string> names;
++  for (const ranga_private::SpaceName& space : state.spaces) {
++    names[space.container] = space.name;
++  }
++  Profile* profile = browser->GetProfile();
++  static base::NoDestructor<
++      std::map<base::FilePath, std::map<std::string, std::string>>>
++      known;
++  std::map<std::string, std::string>& last = (*known)[profile->GetPath()];
++  if (last != names) {
++    last = names;
++    base::ThreadPool::PostTaskAndReplyWithResult(
++        FROM_HERE, {base::MayBlock()},
++        base::BindOnce(&RenameRangaSpaces, profile->GetPath(), names),
++        base::BindOnce(
++            [](base::WeakPtr<Profile> profile,
++               std::vector<std::string> renamed) {
++              web_app::WebAppProvider* provider =
++                  profile ? web_app::WebAppProvider::GetForWebApps(
++                                profile.get())
++                          : nullptr;
++              if (!provider) {
++                return;
++              }
++              web_app::SynchronizeOsOptions options;
++              options.force_create_shortcuts = true;
++              for (const std::string& app_id : renamed) {
++                provider->scheduler().SynchronizeOsIntegration(
++                    app_id, base::DoNothing(), options);
++              }
++            },
++            profile->GetWeakPtr()));
++  }
++  return RespondNow(NoArguments());
++}
++
+ ExtensionFunction::ResponseAction RangaPrivateGetTabContainersFunction::Run() {
+   auto params = ranga_private::GetTabContainers::Params::Create(args());
+   EXTENSION_FUNCTION_VALIDATE(params);
+--- /dev/null
++++ b/chrome/browser/ranga/ranga_space_apps.h
+@@ -0,0 +1,154 @@
++// Copyright 2026 The Ranga Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_RANGA_RANGA_SPACE_APPS_H_
++#define CHROME_BROWSER_RANGA_RANGA_SPACE_APPS_H_
++
++#include <map>
++#include <optional>
++#include <string>
++#include <vector>
++
++#include "base/files/file_path.h"
++#include "base/files/file_util.h"
++#include "base/files/important_file_writer.h"
++#include "base/json/json_reader.h"
++#include "base/json/json_writer.h"
++#include "base/no_destructor.h"
++#include "base/time/time.h"
++#include "base/values.h"
++
++struct RangaAppSpaces {
++  bool main = true;
++  std::map<std::string, std::string> spaces;
++};
++
++struct RangaSpaceInstall {
++  base::FilePath profile_path;
++  std::string container;
++  std::string name;
++  bool installed = false;
++  base::TimeTicks at;
++};
++
++inline std::optional<RangaSpaceInstall>& RangaPendingSpaceInstall() {
++  static base::NoDestructor<std::optional<RangaSpaceInstall>> pending;
++  return *pending;
++}
++
++inline base::FilePath RangaSpaceAppsFile(const base::FilePath& profile_path) {
++  return profile_path.AppendASCII("Ranga Space Apps.json");
++}
++
++inline base::DictValue ReadRangaSpaceApps(const base::FilePath& profile_path) {
++  std::string json;
++  if (!base::ReadFileToString(RangaSpaceAppsFile(profile_path), &json)) {
++    return base::DictValue();
++  }
++  std::optional<base::DictValue> all =
++      base::JSONReader::ReadDict(json, base::JSON_PARSE_RFC);
++  return all ? std::move(*all) : base::DictValue();
++}
++
++inline std::optional<RangaAppSpaces> RangaSpacesOfApp(
++    const base::FilePath& profile_path,
++    const std::string& app_id) {
++  base::DictValue all = ReadRangaSpaceApps(profile_path);
++  const base::DictValue* app = all.FindDict(app_id);
++  if (!app) {
++    return std::nullopt;
++  }
++  RangaAppSpaces result;
++  result.main = app->FindBool("main").value_or(true);
++  if (const base::DictValue* spaces = app->FindDict("spaces")) {
++    for (const auto [container, name] : *spaces) {
++      if (name.is_string()) {
++        result.spaces[container] = name.GetString();
++      }
++    }
++  }
++  return result;
++}
++
++inline void AddRangaSpaceApp(const base::FilePath& profile_path,
++                             const std::string& app_id,
++                             const RangaSpaceInstall& install) {
++  base::DictValue all = ReadRangaSpaceApps(profile_path);
++  base::DictValue* app = all.FindDict(app_id);
++  if (!app || !install.installed) {
++    base::DictValue fresh;
++    fresh.Set("main", install.installed);
++    app = all.Set(app_id, std::move(fresh))->GetIfDict();
++  }
++  if (install.container.empty()) {
++    app->Set("main", true);
++  } else {
++    app->EnsureDict("spaces")->Set(install.container, install.name);
++  }
++  if (std::optional<std::string> json = base::WriteJson(all)) {
++    base::ImportantFileWriter::WriteFileAtomically(
++        RangaSpaceAppsFile(profile_path), *json);
++  }
++}
++
++inline std::vector<std::string> RenameRangaSpaces(
++    const base::FilePath& profile_path,
++    const std::map<std::string, std::string>& names) {
++  base::DictValue all = ReadRangaSpaceApps(profile_path);
++  std::vector<std::string> renamed;
++  for (auto [app_id, app] : all) {
++    base::DictValue* spaces =
++        app.is_dict() ? app.GetDict().FindDict("spaces") : nullptr;
++    if (!spaces) {
++      continue;
++    }
++    bool changed = false;
++    for (auto [container, name] : *spaces) {
++      auto it = names.find(container);
++      if (it != names.end() && name.is_string() &&
++          name.GetString() != it->second) {
++        name = base::Value(it->second);
++        changed = true;
++      }
++    }
++    if (changed) {
++      renamed.push_back(app_id);
++    }
++  }
++  if (!renamed.empty()) {
++    if (std::optional<std::string> json = base::WriteJson(all)) {
++      base::ImportantFileWriter::WriteFileAtomically(
++          RangaSpaceAppsFile(profile_path), *json);
++    }
++  }
++  return renamed;
++}
++
++inline bool RemoveRangaSpaceApp(const base::FilePath& profile_path,
++                                const std::string& app_id,
++                                const std::string& container) {
++  base::DictValue all = ReadRangaSpaceApps(profile_path);
++  base::DictValue* app = all.FindDict(app_id);
++  if (!app) {
++    return false;
++  }
++  base::DictValue* spaces = app->EnsureDict("spaces");
++  const bool main = app->FindBool("main").value_or(true);
++  if (container.empty()) {
++    if (spaces->empty()) {
++      return false;
++    }
++    app->Set("main", false);
++  } else {
++    if (!spaces->contains(container) || (spaces->size() == 1 && !main)) {
++      return false;
++    }
++    spaces->Remove(container);
++  }
++  std::optional<std::string> json = base::WriteJson(all);
++  return json && base::ImportantFileWriter::WriteFileAtomically(
++                     RangaSpaceAppsFile(profile_path), *json);
++}
++
++#endif  // CHROME_BROWSER_RANGA_RANGA_SPACE_APPS_H_

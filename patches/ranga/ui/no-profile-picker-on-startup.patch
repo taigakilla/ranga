@@ -1,0 +1,13 @@
+Sem a tela "Quem está usando o Ranga?" ao abrir: com mais de um perfil, o Ranga abre direto no último perfil usado, como com um só. A tela continua no menu (Perfis) para quem quiser trocar.
+
+--- a/chrome/browser/profiles/profiles_state.cc
++++ b/chrome/browser/profiles/profiles_state.cc
+@@ -83,7 +83,7 @@
+   registry->RegisterBooleanPref(prefs::kBrowserAddPersonEnabled, true);
+   registry->RegisterBooleanPref(prefs::kForceBrowserSignin, false);
+   registry->RegisterBooleanPref(prefs::kBrowserShowProfilePickerOnStartup,
+-                                true);
++                                false);
+   registry->RegisterIntegerPref(
+       prefs::kBrowserProfilePickerAvailabilityOnStartup,
+       static_cast<int>(ProfilePicker::AvailabilityOnStartup::kEnabled));

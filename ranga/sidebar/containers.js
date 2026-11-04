@@ -1,10 +1,9 @@
-import { loadContainers, membership, containerSnapshot, lostTabs } from "./containers-model.js";
+import { loadContainers, membership } from "./containers-model.js";
 import { available, call } from "./ranga-private.js";
 
 export function setupContainers({ windowId }) {
   let list = loadContainers(undefined);
   let members = new Map();
-  let healed = false;
 
   async function load() {
     if (!available) return;
@@ -39,29 +38,5 @@ export function setupContainers({ windowId }) {
     return id;
   }
 
-  async function save(tabs) {
-    if (!available || !healed) return;
-    await load();
-    await chrome.storage.local.set({ containerSnapshot: containerSnapshot(tabs, members) });
-  }
-
-  async function heal(tabs) {
-    if (!available) return [];
-    const created = [];
-    try {
-      const { containersHealed } = await chrome.storage.session.get("containersHealed");
-      if (containersHealed) return created;
-      await chrome.storage.session.set({ containersHealed: true });
-      await load();
-      const { containerSnapshot: shot } = await chrome.storage.local.get("containerSnapshot");
-      for (const tab of lostTabs(shot, tabs, members, list)) {
-        created.push({ from: tab.tabId, to: await reopen({ ...tab, id: tab.tabId }, tab.container) });
-      }
-    } finally {
-      healed = true;
-    }
-    return created;
-  }
-
-  return { available, load, of, sessionOfTab, list: () => list, open, reopen, save, heal };
+  return { available, load, of, sessionOfTab, list: () => list, open, reopen };
 }

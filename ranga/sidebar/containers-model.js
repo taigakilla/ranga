@@ -45,25 +45,6 @@ export function membership(entries) {
   return new Map((entries ?? []).filter((e) => e.container).map((e) => [e.tabId, e.container]));
 }
 
-export function containerSnapshot(tabs, members) {
-  return [...tabs].sort((a, b) => a.index - b.index).map((t) => ({ url: t.url || t.pendingUrl || "", container: members.get(t.id) ?? "" }));
-}
-
-export function lostTabs(shot, tabs, members, known) {
-  const pending = [...(shot ?? [])];
-  const lost = [];
-  for (const tab of [...tabs].sort((a, b) => a.index - b.index)) {
-    const url = tab.url || tab.pendingUrl || "";
-    const i = pending.findIndex((entry) => entry.url === url);
-    if (i < 0) continue;
-    const { container } = pending[i];
-    pending.splice(i, 1);
-    if (!container || members.has(tab.id) || !known.some((c) => c.id === container)) continue;
-    lost.push({ tabId: tab.id, url, index: tab.index, active: tab.active, pinned: tab.pinned, container });
-  }
-  return lost;
-}
-
 export function pagesOf(container) {
   return Array.isArray(container?.pages) ? container.pages : [];
 }

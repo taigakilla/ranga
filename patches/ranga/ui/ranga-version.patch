@@ -10,7 +10,7 @@ Ranga: página Sobre mostra a versão do Ranga
 +#ifndef CHROME_BROWSER_RANGA_RANGA_VERSION_H_
 +#define CHROME_BROWSER_RANGA_RANGA_VERSION_H_
 +
-+inline constexpr char kRangaVersion[] = "0.5.4";
++inline constexpr char kRangaVersion[] = "0.5.5";
 +
 +#endif  // CHROME_BROWSER_RANGA_RANGA_VERSION_H_
 --- a/chrome/browser/ui/webui/version/version_ui.cc

@@ -68,3 +68,6 @@ ranga/ui/mpris-desktop-entry.patch
 ranga/ui/media-pip-state.patch
 ranga/ui/media-artwork.patch
 ranga/ui/media-live.patch
+ranga/ui/app-containers.patch
+ranga/ui/no-profile-picker-on-startup.patch
+ranga/ui/app-download-toasts.patch
