@@ -249,6 +249,11 @@ async function open() {
   if (location.hash.startsWith("#idle")) return;
   document.title = "Ranga";
   document.body.classList.remove("closed");
+  for (const el of [document.getElementById("card"), document.getElementById("scrim")]) {
+    el.style.animation = "none";
+    void el.offsetWidth;
+    el.style.animation = "";
+  }
   mode = location.hash.startsWith("#current") ? "current" : "new";
   const windowId = Number(location.hash.match(/^#\w+:(\d+)/)?.[1]) || (await chrome.windows.getLastFocused()).id;
   [target] = await chrome.tabs.query({ active: true, windowId });
@@ -265,11 +270,6 @@ async function open() {
   query.value = mode === "current" && !empty ? displayUrl(target?.url ?? "", true) : "";
   query.focus();
   query.select();
-  for (const el of [document.getElementById("card"), document.getElementById("scrim")]) {
-    el.style.animation = "none";
-    void el.offsetWidth;
-    el.style.animation = "";
-  }
   refresh();
 }
 

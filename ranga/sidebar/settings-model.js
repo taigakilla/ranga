@@ -4,7 +4,7 @@ export const DEFAULTS = Object.freeze({
   showFullUrl: false,
   materialOpacity: 85,
   sleepAfterMinutes: 30,
-  archiveAfterHours: 12,
+  archiveAfterHours: 48,
   peekPinnedLinks: true,
   littleWindowLinks: true,
   miniPlayer: true,
@@ -22,7 +22,7 @@ export const DEFAULTS = Object.freeze({
 const CHOICES = {
   density: ["comfortable", "compact"],
   sleepAfterMinutes: [0, 15, 30, 60, 120],
-  archiveAfterHours: [0, 12, 24, 168],
+  archiveAfterHours: [0, 24, 48, 168],
 };
 const RANGES = { materialOpacity: [0, 100] };
 

@@ -8,7 +8,7 @@
 
 Feito sobre o [Helium](https://github.com/imputnet/helium) (Chromium sem Google), com a barra lateral no estilo do Arc, Material 3 e as cores do tema do sistema.
 
-![versão](https://img.shields.io/badge/versão-0.5.5-7cc2a8?style=flat-square)
+![versão](https://img.shields.io/badge/versão-0.5.6-7cc2a8?style=flat-square)
 ![Chromium](https://img.shields.io/badge/Chromium-156-4c8bf5?style=flat-square)
 ![Linux](https://img.shields.io/badge/Linux-x86__64-e0a64b?style=flat-square)
 ![licença](https://img.shields.io/badge/licença-GPL--3.0-b07ce8?style=flat-square)
@@ -34,7 +34,7 @@ O Chromium guarda abas numa faixa no topo, configurações em dois lugares e tra
 - **Espaços** com ícone, cor e sessão própria: cada espaço tem seus logins e cookies. Ctrl+Shift+← / → ou rolar de lado troca de espaço; cada um lembra a última aba, e fechar uma aba fica no mesmo espaço.
 - **Apps por espaço**: "Instalar como app" instala o PWA no espaço em que você está, com a conta dele e a própria entrada no menu de apps ("App — Espaço"). O mesmo app pode ficar em dois espaços, um com cada conta, sem outro perfil.
 - **Fixadas** em grade de cartões, com pastas. Um link aberto de uma fixada aparece num **Peek** por cima da página.
-- **Hoje**: as abas do dia. Paradas dormem e as esquecidas são arquivadas, com Desfazer.
+- **Hoje**: as abas do dia. Paradas dormem (sem perder fixada, espaço nem nome) e as esquecidas há 2 dias são arquivadas, com Desfazer.
 - **Favoritos**, downloads com anel de progresso, extensões fixadas e o endereço da aba atual.
 - Renomear abas com duplo clique, Ctrl/Shift+clique pra marcar várias e fechar, mover ou fixar todas de uma vez.
 
@@ -110,6 +110,7 @@ Ctrl+clique e Shift+clique marcam abas; o menu vale pra todas: fechar, mover de 
 | Atalho | O que faz |
 |---|---|
 | Ctrl+T | Spotlight pra nova aba |
+| Ctrl+N / Ctrl+Shift+N | Janela nova / anônima, já com o Spotlight aberto |
 | Ctrl+L | Buscar ou trocar o endereço da aba |
 | Ctrl+Shift+S | Recolher ou fixar a barra lateral |
 | Ctrl+Shift+← / → | Espaço anterior / próximo |

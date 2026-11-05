@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.6 — 04/11/2026
+- **Aba que dorme não se perde mais**: ao dormir (automático, pelo menu ou pelo Chromium economizando memória), o Chromium trocava a aba por outra com id novo, e a barra perdia a fixada, o espaço, o nome e a ilha dela; a fixada aparecia fechada e a aba caía no espaço ativo. Agora a aba dorme no lugar, com o mesmo id, o mesmo container e tudo o que estava ligado a ela.
+- **Janela nova já com o Spotlight**: Ctrl+N e Ctrl+Shift+N abrem a janela com o Spotlight aberto e com o foco nele, é só digitar. Cada janela deixa um Spotlight pronto de reserva, então ele aparece junto com a janela, sem piscar. O Spotlight aberto também acompanha a janela quando ela muda de tamanho.
+- **Arquivar depois de 2 dias**: o padrão de "Arquivar abas esquecidas" passou de 12 horas pra 2 dias, e as opções agora são 1 dia, 2 dias, 7 dias ou Nunca. Quem estava em 12 horas passa pra 2 dias.
+
 ## 0.5.5 — 04/11/2026
 - **Cada espaço com a própria conta de verdade**: abas que nasciam fora da barra (Ctrl+T, link vindo de outro app, a aba vazia ao entrar num espaço sem abas) caíam na sessão principal mesmo num espaço com sessão própria, e o login aparecia nos dois espaços. Agora o navegador sabe o espaço ativo de cada janela e essas abas já nascem no container dele, sem recarregar. Links abertos de um app ou aba da sessão principal continuam na sessão principal, no espaço Pessoal.
 - **Apps por espaço**: "Instalar como app" num espaço com conta própria instala o app só nele. O app abre no container do espaço, com os cookies e logins dele, e ganha a própria entrada no menu de apps ("<app> — <espaço>"), que acompanha o nome se o espaço for renomeado. O mesmo app (o Teams, por exemplo) pode ser instalado em dois espaços, um com cada conta, sem outro perfil. As janelas de cada espaço têm a classe `chrome-<app>-<perfil>-<container>` e não se misturam, e links abertos de dentro do app caem no espaço dele. Desinstalar pelo menu do app tira ele só daquele espaço quando ele também está em outro.

@@ -1,0 +1,226 @@
+--- a/chrome/browser/ui/browser_command_controller.cc
++++ b/chrome/browser/ui/browser_command_controller.cc
+@@ -759,10 +759,11 @@
+       break;
+     // Window management commands
+     case IDC_NEW_WINDOW:
+-      NewWindow(browser_);
++      RangaOpenWithSpotlight(browser_, [&] { NewWindow(browser_); });
+       break;
+     case IDC_NEW_INCOGNITO_WINDOW:
+-      NewIncognitoWindow(profile());
++      RangaOpenWithSpotlight(browser_,
++                             [&] { NewIncognitoWindow(profile()); });
+       break;
+     case IDC_NEW_ISOLATED_WINDOW:
+       NewIncognitoWindow(profile());
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -1519,6 +1519,12 @@
+   return nullptr;
+ }
+ 
++bool RangaSpotlightOpen(BrowserView* browser_view) {
++  RangaSpotlightView* spotlight =
++      RangaFindOverlay(browser_view, "spotlight.html");
++  return spotlight && spotlight->GetVisible();
++}
++
+ void ShowRangaSpotlight(BrowserView* browser_view, bool new_tab) {
+   RangaShowSpotlight(browser_view->browser(), new_tab ? "new" : "current");
+ }
+@@ -2750,7 +2756,8 @@
+ #else
+   bool will_restore_focus =
+       !browser_->GetTabStripModel()->closing_all() && GetWidget()->IsActive() &&
+-      GetWidget()->IsVisible() && !tab_change_in_split_view;
++      GetWidget()->IsVisible() && !tab_change_in_split_view &&
++      !RangaSpotlightOpen(this);
+ #endif
+   // Update various elements that are interested in knowing the current
+   // WebContents.
+@@ -4964,7 +4971,9 @@
+ 
+         // Set initial focus change on the first activation if there is no
+         // modal dialog.
+-        if (!WidgetHasChildModalDialog(GetWidget())) {
++        if (RangaSpotlightOpen(this)) {
++          RangaFindOverlay(this, "spotlight.html")->RequestFocus();
++        } else if (!WidgetHasChildModalDialog(GetWidget())) {
+           RestoreFocus();
+         }
+       }
+--- a/chrome/browser/ui/views/frame/ranga_spotlight_view.cc
++++ b/chrome/browser/ui/views/frame/ranga_spotlight_view.cc
+@@ -1,6 +1,8 @@
+ #include "chrome/browser/ui/views/frame/ranga_spotlight_view.h"
+ 
++#include <algorithm>
+ #include <string>
++#include <vector>
+ 
+ #include "base/strings/string_number_conversions.h"
+ #include "base/command_line.h"
+@@ -8,6 +10,7 @@
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ranga/ranga_links.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
++#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/frame/contents_container_view.h"
+ #include "chrome/browser/ui/views/frame/contents_web_view.h"
+@@ -17,6 +20,7 @@
+ #include "content/public/browser/navigation_controller.h"
+ #include "content/public/browser/render_frame_host.h"
+ #include "content/public/browser/render_widget_host_view.h"
++#include "content/public/browser/site_instance.h"
+ #include "content/public/browser/web_contents.h"
+ #include "third_party/skia/include/core/SkColor.h"
+ #include "ui/base/base_window.h"
+@@ -31,6 +35,7 @@
+                                        base::RepeatingClosure on_hidden)
+     : views::WebView(browser_context),
+       page_(std::move(page)),
++      context_(browser_context),
+       on_hidden_(std::move(on_hidden)) {
+   SetVisible(false);
+ }
+@@ -59,7 +64,29 @@
+   }
+ }
+ 
++std::unique_ptr<content::WebContents> RangaSpotlightView::LoadedContents() {
++  const GURL url(
++      std::string("chrome-extension://hncljkmljckjojdjincglklbdihcaeko/") +
++      page_ + "#idle-0");
++  content::WebContents::CreateParams params(context_);
++  params.site_instance = content::SiteInstance::CreateForURL(context_, url);
++  params.initially_hidden = true;
++  std::unique_ptr<content::WebContents> contents =
++      content::WebContents::Create(params);
++  if (GetWidget()) {
++    contents->SetColorProviderSource(GetWidget());
++  }
++  contents->SetPageBaseBackgroundColor(SK_ColorTRANSPARENT);
++  contents->GetController().LoadURL(url, content::Referrer(),
++                                    ui::PAGE_TRANSITION_AUTO_TOPLEVEL,
++                                    std::string());
++  return contents;
++}
++
+ void RangaSpotlightView::Preload() {
++  if (page_ == "spotlight.html" && !spare_) {
++    spare_ = LoadedContents();
++  }
+   content::WebContents* contents = GetWebContents();
+   if (!contents->GetController().IsInitialNavigation()) {
+     return;
+@@ -71,6 +98,21 @@
+       content::Referrer(), ui::PAGE_TRANSITION_AUTO_TOPLEVEL, std::string());
+ }
+ 
++void RangaSpotlightView::Adopt(RangaSpotlightView* source) {
++  if (GetVisible() || !source || !source->spare_ ||
++      source->context_ != context_ || !GetWidget() || !source->GetWidget() ||
++      GetWidget()->GetColorMode() != source->GetWidget()->GetColorMode()) {
++    return;
++  }
++  SetWebContents(nullptr);
++  SetOwnedWebContents(std::move(source->spare_));
++  if (content::RenderWidgetHostView* view =
++          web_contents()->GetRenderWidgetHostView()) {
++    view->SetBackgroundColor(SK_ColorTRANSPARENT);
++  }
++  source->spare_ = source->LoadedContents();
++}
++
+ void RangaSpotlightView::Hide() {
+   if (!GetVisible()) {
+     return;
+@@ -178,6 +220,27 @@
+   return true;
+ }
+ 
++void RangaOpenWithSpotlight(BrowserWindowInterface* from,
++                            base::FunctionRef<void()> open) {
++  const std::vector<BrowserWindowInterface*> before =
++      GetAllBrowserWindowInterfaces();
++  open();
++  BrowserView* from_view = BrowserView::GetBrowserViewForBrowser(from);
++  RangaSpotlightView* source =
++      from_view ? RangaFindOverlay(from_view, "spotlight.html") : nullptr;
++  for (BrowserWindowInterface* browser : GetAllBrowserWindowInterfaces()) {
++    if (std::ranges::contains(before, browser)) {
++      continue;
++    }
++    if (BrowserView* browser_view =
++            BrowserView::GetBrowserViewForBrowser(browser);
++        browser_view && source) {
++      RangaOverlayFor(browser_view, "spotlight.html")->Adopt(source);
++    }
++    RangaShowSpotlight(browser, "new");
++  }
++}
++
+ void RangaShowNavigationHint(BrowserWindowInterface* browser, bool back) {
+   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+           "ranga-native-chrome") ||
+@@ -270,6 +333,11 @@
+   if (!RangaOwnsWindow(browser_view)) {
+     return;
+   }
++  if (RangaSpotlightView* spotlight =
++          RangaFindOverlay(browser_view, "spotlight.html");
++      spotlight && spotlight->GetVisible()) {
++    spotlight->SetBoundsRect(RangaContentsArea(browser_view));
++  }
+   constexpr int kWidth = 116;
+   constexpr int kHeight = 44;
+   MultiContentsView* multi = browser_view->multi_contents_view();
+--- a/chrome/browser/ui/views/frame/ranga_spotlight_view.h
++++ b/chrome/browser/ui/views/frame/ranga_spotlight_view.h
+@@ -1,10 +1,13 @@
+ #ifndef CHROME_BROWSER_UI_VIEWS_FRAME_RANGA_SPOTLIGHT_VIEW_H_
+ #define CHROME_BROWSER_UI_VIEWS_FRAME_RANGA_SPOTLIGHT_VIEW_H_
+ 
++#include <memory>
+ #include <string>
+ #include <string_view>
+ 
+ #include "base/functional/callback.h"
++#include "base/functional/function_ref.h"
++#include "base/memory/raw_ptr.h"
+ #include "ui/base/metadata/metadata_header_macros.h"
+ #include "ui/views/controls/webview/webview.h"
+ 
+@@ -37,6 +40,7 @@
+   void Show(std::string_view mode, const gfx::Rect& bounds, bool focus = true);
+   void Preload();
+   void Hide();
++  void Adopt(RangaSpotlightView* source);
+ 
+   void CloseContents(content::WebContents* source) override;
+   void TitleWasSet(content::NavigationEntry* entry) override;
+@@ -44,8 +48,12 @@
+ 
+  private:
+   std::string page_;
++  std::unique_ptr<content::WebContents> LoadedContents();
++
++  raw_ptr<content::BrowserContext> context_;
+   std::string mode_;
+   base::RepeatingClosure on_hidden_;
++  std::unique_ptr<content::WebContents> spare_;
+   int generation_ = 0;
+ };
+ 
+@@ -59,6 +67,9 @@
+ 
+ bool RangaShowSpotlight(BrowserWindowInterface* browser, std::string_view mode);
+ 
++void RangaOpenWithSpotlight(BrowserWindowInterface* from,
++                            base::FunctionRef<void()> open);
++
+ bool RangaShowFind(BrowserWindowInterface* browser, int step);
+ 
+ void RangaShowNavigationHint(BrowserWindowInterface* browser, bool back);

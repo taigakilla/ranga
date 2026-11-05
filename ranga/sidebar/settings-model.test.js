@@ -46,11 +46,12 @@ test("opacidade do material: padrão 85, aceita 0 a 100 inteiro", () => {
 test("dormir e arquivar: padrões e só as escolhas válidas", () => {
   const d = loadSettings(undefined);
   assert.equal(d.sleepAfterMinutes, 30);
-  assert.equal(d.archiveAfterHours, 12);
+  assert.equal(d.archiveAfterHours, 48);
   assert.equal(loadSettings({ sleepAfterMinutes: 0 }).sleepAfterMinutes, 0);
   assert.equal(loadSettings({ sleepAfterMinutes: 45 }).sleepAfterMinutes, 30);
   assert.equal(loadSettings({ archiveAfterHours: 168 }).archiveAfterHours, 168);
-  assert.equal(loadSettings({ archiveAfterHours: "12" }).archiveAfterHours, 12);
+  assert.equal(loadSettings({ archiveAfterHours: "24" }).archiveAfterHours, 48);
+  assert.equal(loadSettings({ archiveAfterHours: 12 }).archiveAfterHours, 48);
 });
 
 test("nova aba não mostra endereço", () => {
