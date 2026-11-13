@@ -68,7 +68,10 @@ body {
 .hour__time { opacity: 0.75; }
 
 .task-form { display: flex; align-items: center; gap: 4px; padding: 4px 4px 4px 0; }
+.task-form[hidden] { display: none; }
 .task-form .k-text-field { flex: 1; border-radius: var(--k-shape-full); }
+.places { list-style: none; margin: 0; padding: 0; }
+.place { appearance: none; border: 0; background: none; color: inherit; font: inherit; width: 100%; padding: 10px 8px; border-radius: var(--k-shape-large); text-align: start; cursor: pointer; }
 .task-add { background: var(--k-color-primary-container, var(--k-color-secondary-container)); }
 .task-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; }
 .task { display: flex; align-items: center; gap: 4px; border-radius: var(--k-shape-large); }

@@ -41,6 +41,8 @@ mkdir -p "$prefix" 2>/dev/null && [ -w "$prefix" ] || as_root=(pkexec)
 
 mkdir -p "$bindir"
 install -m 755 "$here/ranga-update" "$bindir/ranga-update"
+install -m 755 "$here/ranga-translatekit" "$bindir/ranga-translatekit"
+"$bindir/ranga-translatekit" || echo "tradução do navegador fica pra próxima: ranga-translatekit" >&2
 cat > "$bindir/ranga" <<LAUNCHER
 #!/usr/bin/env bash
 profile="$profile"
@@ -58,7 +60,11 @@ fi
 export LANGUAGE="\${RANGA_LANGUAGE:-pt_BR}"
 export CHROME_WRAPPER="$bindir/ranga"
 export LD_LIBRARY_PATH="$prefix/current\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"
-exec "$prefix/current/ranga" "\$@"
+translatekit="$data/ranga/TranslateKit"
+translate=()
+[ -f "\$translatekit/lib/TranslateKitFiles/libtranslatekit.so" ] && [ -f "\$translatekit/en_pt/manifest.json" ] \\
+  && translate=(--translate-kit-binary-path="\$translatekit/lib/TranslateKitFiles/libtranslatekit.so" --translate-kit-packages="en,pt,\$translatekit/en_pt")
+exec "$prefix/current/ranga" "\${translate[@]}" "\$@"
 LAUNCHER
 chmod +x "$bindir/ranga"
 

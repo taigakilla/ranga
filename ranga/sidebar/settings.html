@@ -154,9 +154,18 @@
           <input class="k-switch" type="checkbox" data-key="newtabNews">
         </label>
         <label class="setting">
-          <span class="text"><span class="k-type-panel">Tempo e tarefas na nova aba</span><span class="k-type-caption hint">Previsão por hora da cidade escolhida no Ciel (Open-Meteo) e uma lista de tarefas guardada no Ranga.</span></span>
+          <span class="text"><span class="k-type-panel">Tempo e tarefas na nova aba</span><span class="k-type-caption hint">Previsão por hora da sua cidade (Open-Meteo) e uma lista de tarefas guardada no Ranga.</span></span>
           <input class="k-switch" type="checkbox" data-key="newtabCards">
         </label>
+        <div class="setting">
+          <span class="text"><span class="k-type-panel">Cidade do tempo</span><span id="weather-place" class="k-type-caption hint"></span></span>
+          <button id="weather-place-clear" class="k-button k-button--text k-type-button" type="button" hidden>Usar a do Ciel</button>
+        </div>
+        <form id="weather-place-form" class="setting container-new">
+          <input name="query" class="k-text-field k-type-label" placeholder="Buscar cidade" maxlength="80" autocomplete="off">
+          <button class="k-button k-button--tonal k-type-button" type="submit">Buscar</button>
+        </form>
+        <div id="weather-place-results"></div>
         <button class="setting setting--link" type="button" data-open="chrome://settings/searchEngines">
           <span class="text"><span class="k-type-panel">Mecanismos e atalhos de busca</span><span class="k-type-caption hint">Adicionar mecanismos e palavras-chave de site.</span></span>
           <span class="k-icon" data-icon="external-link"></span>

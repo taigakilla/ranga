@@ -1,7 +1,7 @@
 import { glyph } from "./kurobe/icons.mjs";
 import { fileName, progress, status, active, overall } from "./downloads-model.js";
 import { pop, squash, animate, reducedMotion } from "./motion.js";
-import { toast, hideToast } from "./toast.js";
+import { toast } from "./toast.js";
 
 const RING = 2 * Math.PI * 16;
 
@@ -95,7 +95,6 @@ export function setupDownloads({ button, popover, windowId, peek }) {
     if (!popover.hidden) return close();
     await load();
     paintList();
-    hideToast();
     popover.hidden = false;
     button.setAttribute("aria-expanded", "true");
   };
@@ -150,7 +149,7 @@ export function setupDownloads({ button, popover, windowId, peek }) {
     if (delta.state?.current !== "complete" || !(await focused())) return;
     await peek(4000);
     pop(button);
-    if (popover.hidden) toast("Download concluído", { label: "Abrir", run: () => chrome.downloads.open(delta.id) });
+    if (popover.hidden) toast("Download concluído", { label: "Abrir", run: () => chrome.downloads.open(delta.id) }, "file-check");
   });
   chrome.downloads.onErased.addListener(load);
 

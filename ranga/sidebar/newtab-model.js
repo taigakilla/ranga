@@ -92,3 +92,16 @@ export function shortcuts(pinned, top, max = 10) {
   }
   return out;
 }
+
+export function placesUrl(query) {
+  return `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query.trim())}&count=5&language=pt&format=json`;
+}
+
+export function places(json) {
+  return (json?.results ?? []).filter((r) => Number.isFinite(r.latitude) && Number.isFinite(r.longitude) && r.name).map((r) => ({
+    name: r.name,
+    label: [...new Set([r.name, r.admin1, r.country].filter(Boolean))].join(", "),
+    latitude: r.latitude,
+    longitude: r.longitude,
+  }));
+}

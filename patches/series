@@ -70,6 +70,9 @@ ranga/ui/media-artwork.patch
 ranga/ui/media-live.patch
 ranga/ui/app-containers.patch
 ranga/ui/no-profile-picker-on-startup.patch
-ranga/ui/app-download-toasts.patch
 ranga/ui/discard-keeps-tab.patch
 ranga/ui/new-window-spotlight.patch
+ranga/ui/app-download-card.patch
+ranga/ui/sidebar-reveal-delay.patch
+ranga/ui/translator-containers.patch
+ranga/ui/notices.patch

@@ -1,0 +1,34 @@
+html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; font-family: var(--k-type-family); color: var(--k-color-on-surface); }
+.card {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  width: 380px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--k-space-md);
+  padding: var(--k-space-lg) var(--k-space-sm) var(--k-space-lg) var(--k-space-lg);
+  border-radius: var(--k-shape-extra-large);
+  background: var(--k-color-surface-container-high);
+  box-shadow: 0 6px 14px -4px rgb(0 0 0 / 0.4), 0 1px 3px rgb(0 0 0 / 0.25);
+  transform-origin: bottom right;
+  animation: card-in var(--k-motion-spring-spatial-default-duration) var(--k-motion-spring-spatial-default);
+}
+@keyframes card-in { from { opacity: 0; transform: translateY(12px) scale(0.92); } }
+.icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--k-shape-medium); background: var(--k-color-primary-container); color: var(--k-color-on-primary-container); font-size: 20px; }
+.icon img { width: 28px; height: 28px; }
+.card--failed .icon { background: var(--k-color-error-container); color: var(--k-color-on-error-container); }
+.body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status { color: var(--k-color-on-surface-variant); }
+.card--failed .status { color: var(--k-color-error); }
+.bar { position: relative; height: 4px; margin-top: 4px; border-radius: var(--k-shape-full); background: var(--k-color-surface-container-highest); overflow: hidden; }
+.bar[hidden] { display: none; }
+.bar::after { content: ""; position: absolute; inset: 0; width: calc(var(--progress, 0) * 100%); border-radius: inherit; background: var(--k-color-primary); transition: width var(--k-motion-spring-spatial-default-duration) var(--k-motion-spring-spatial-default); }
+.bar--unknown::after { width: 30%; animation: indeterminate 1.4s ease-in-out infinite; }
+@keyframes indeterminate { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+.actions { display: flex; gap: var(--k-space-xs); margin-top: var(--k-space-xs); }
+.actions[hidden] { display: none; }
+.close { flex: none; margin-top: -6px; }
+body.closed > * { visibility: hidden; }

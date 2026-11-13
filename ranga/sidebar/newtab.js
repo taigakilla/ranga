@@ -4,7 +4,7 @@ import { current, label } from "./shortcuts-model.js";
 import { available as rangaPrivate, call } from "./ranga-private.js";
 import { loadSettings } from "./settings-model.js";
 import { links } from "./pins-model.js";
-import { greeting, fullDate, parseNews, ago, weatherIcon, weatherLabel, hourly, shortcuts } from "./newtab-model.js";
+import { greeting, fullDate, parseNews, ago, weatherIcon, weatherLabel, hourly, shortcuts, placesUrl, places } from "./newtab-model.js";
 
 const NEWS_URL = "https://news.google.com/rss?hl=pt-BR&gl=BR&ceid=BR:pt-419";
 const FRESH = 30 * 60 * 1000;
@@ -31,7 +31,7 @@ function el(tag, className, text) {
 }
 
 const tab = await chrome.tabs.getCurrent();
-const stored = await chrome.storage.local.get(["settings", "shortcuts", "spaces", "pins", "tasks", "newsCache", "weatherCache"]);
+const stored = await chrome.storage.local.get(["settings", "shortcuts", "spaces", "pins", "tasks", "newsCache", "weatherCache", "weatherPlace"]);
 const settings = loadSettings(stored.settings);
 
 function paintClock() {
@@ -76,11 +76,14 @@ async function cached(key, url, parse) {
   return data;
 }
 
+let placed = false;
+
 async function paintWeather(place) {
-  if (!place) {
-    $("weather-empty").hidden = false;
-    return;
-  }
+  $("weather-form").hidden = Boolean(place);
+  $("weather-empty").hidden = Boolean(place);
+  if (!place) return;
+  placed = true;
+  $("weather-places").replaceChildren();
   $("weather-title").textContent = place.name ? `Tempo em ${place.name}` : "Tempo";
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,weather_code,is_day&hourly=temperature_2m,weather_code,is_day&forecast_days=2&timezone=auto`;
   const forecast = await cached("weatherCache", url, JSON.parse).catch(() => null);
@@ -102,6 +105,25 @@ async function paintWeather(place) {
     return li;
   }));
 }
+
+$("weather-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const query = $("weather-input").value.trim();
+  if (!query) return;
+  const found = await fetch(placesUrl(query)).then((r) => r.json()).then(places).catch(() => []);
+  $("weather-empty").textContent = found.length ? "Qual delas?" : "Não achei essa cidade.";
+  $("weather-places").replaceChildren(...found.map((place) => {
+    const li = el("li");
+    const pick = el("button", "place k-state k-type-label", place.label);
+    pick.type = "button";
+    pick.onclick = async () => {
+      await chrome.storage.local.set({ weatherPlace: place });
+      paintWeather(place);
+    };
+    li.append(pick);
+    return li;
+  }));
+};
 
 let tasks = Array.isArray(stored.tasks) ? stored.tasks : [];
 
@@ -174,14 +196,18 @@ paintIcons();
 const themePort = chrome.runtime.connectNative("ranga.theme");
 themePort.onMessage.addListener((msg) => {
   if (msg.type === "theme") themeStyle.textContent = msg.css;
-  if (msg.type === "location" && settings.newtabCards) paintWeather(msg.location);
+  if (msg.type === "location" && settings.newtabCards && !stored.weatherPlace) paintWeather(msg.location);
+});
+themePort.onDisconnect.addListener(() => {
+  if (settings.newtabCards && !placed) paintWeather(null);
 });
 
 if (settings.newtabCards) {
   $("weather").hidden = false;
   $("tasks").hidden = false;
   paintTasks();
-  themePort.postMessage({ type: "location" });
+  if (stored.weatherPlace) paintWeather(stored.weatherPlace);
+  else themePort.postMessage({ type: "location" });
 }
 if (settings.newtabNews) {
   $("news").hidden = false;

@@ -54,6 +54,7 @@ let incognito = false;
 let closedIn = null;
 let rightAligned = false;
 let leaveTimer;
+let revealTimer;
 let ready = false;
 let snapshotTimer;
 const containers = setupContainers({ windowId: () => windowId });
@@ -203,7 +204,7 @@ function splitEntries(item) {
       const tab = await chrome.tabs.get(item.id);
       const index = tab.index < current.index ? current.index : current.index + 1;
       await chrome.tabs.move(item.id, { index });
-      await chrome.tabs.createSplit([current.id, item.id]).catch(() => toast("Não deu pra dividir essas abas"));
+      await chrome.tabs.createSplit([current.id, item.id]).catch(() => toast("Não deu pra dividir essas abas", null, "circle-alert"));
     },
   }];
 }
@@ -257,7 +258,7 @@ async function closeTabs(ids) {
   if (!ids.length) return;
   tabList.clearSelection();
   await chrome.tabs.remove(ids);
-  toast(ids.length === 1 ? "1 aba fechada" : `${ids.length} abas fechadas`, { label: "Desfazer", run: () => restoreClosed(ids.length) });
+  toast(ids.length === 1 ? "1 aba fechada" : `${ids.length} abas fechadas`, { label: "Desfazer", run: () => restoreClosed(ids.length) }, "copy-x");
 }
 
 async function closeAround(tabId, pick) {
@@ -638,7 +639,7 @@ for (const item of spaceMenu.querySelectorAll("[data-space-action]")) {
     if (item.dataset.spaceAction === "sync") {
       spaces = updateSpace(spaces, space.id, { sync: !space.sync });
       await saveSpaces();
-      toast(space.sync ? `${space.name} parou de sincronizar` : `${space.name} vai aparecer nos outros aparelhos`);
+      toast(space.sync ? `${space.name} parou de sincronizar` : `${space.name} vai aparecer nos outros aparelhos`, null, space.sync ? "cloud-off" : "cloud");
     }
     if (item.dataset.spaceAction === "delete" && spaces.spaces.length > 1) {
       const moving = Object.entries(spaces.tabSpace).filter(([, id]) => id === space.id).map(([id]) => Number(id));
@@ -785,7 +786,7 @@ function announceArchived(info) {
       const urls = new Set(info.entries.map((e) => `${e.url}|${e.archivedAt}`));
       await chrome.storage.local.set({ archive: archive.filter((e) => !urls.has(`${e.url}|${e.archivedAt}`)) });
     },
-  });
+  }, "archive");
 }
 
 document.getElementById("menu-button").onclick = async (e) => {
@@ -826,7 +827,7 @@ const extensions = setupExtensions({
 });
 
 setupPopups();
-setupTextDrop(document.getElementById("space-content"), document.querySelector(".tabs-wrap"));
+setupTextDrop(document.getElementById("space-content"), document.querySelector(".tabs-wrap"), async (url) => (currentSession() ? containers.open({ url, container: currentSession(), active: true }) : (await chrome.tabs.create({ url, windowId })).id));
 
 const player = setupPlayer({
   root: document.getElementById("player"),
@@ -971,13 +972,15 @@ chrome.rangaPrivate?.onSidebarModeChanged?.addListener((mode, w) => {
   if (w === windowId) paintSidebarMode(mode);
 });
 document.documentElement.addEventListener("mouseleave", (e) => {
+  clearTimeout(revealTimer);
   if (sidebarMode !== "floating" || (rightAligned ? e.clientX >= innerWidth - 8 : e.clientX <= 8)) return;
   clearTimeout(leaveTimer);
   leaveTimer = setTimeout(() => { if (sidebarMode === "floating") setSidebarMode("collapsed"); }, 350);
 });
 document.documentElement.addEventListener("mouseenter", () => {
   clearTimeout(leaveTimer);
-  if (sidebarMode === "collapsed") setSidebarMode("floating");
+  clearTimeout(revealTimer);
+  if (sidebarMode === "collapsed") revealTimer = setTimeout(() => { if (sidebarMode === "collapsed") setSidebarMode("floating"); }, 500);
 });
 
 async function splitWithPrevious() {
@@ -994,7 +997,7 @@ async function splitWithPrevious() {
     .sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0));
   if (!previous) return;
   await chrome.tabs.move(previous.id, { index: previous.index < current.index ? current.index : current.index + 1 });
-  await chrome.tabs.createSplit([current.id, previous.id]).catch(() => toast("Não deu pra dividir essas abas"));
+  await chrome.tabs.createSplit([current.id, previous.id]).catch(() => toast("Não deu pra dividir essas abas", null, "circle-alert"));
 }
 
 const SHORTCUT_ACTIONS = {
@@ -1024,7 +1027,7 @@ initSyncUi(async (received) => {
       const tab = (await chrome.tabs.query({})).find((t) => (t.pendingUrl || t.url) === received.url);
       if (tab) chrome.tabs.update(tab.id, { active: true });
     },
-  });
+  }, "send");
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {

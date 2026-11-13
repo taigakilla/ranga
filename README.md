@@ -8,7 +8,7 @@
 
 Feito sobre o [Helium](https://github.com/imputnet/helium) (Chromium sem Google), com a barra lateral no estilo do Arc, Material 3 e as cores do tema do sistema.
 
-![versão](https://img.shields.io/badge/versão-0.5.6-7cc2a8?style=flat-square)
+![versão](https://img.shields.io/badge/versão-0.5.7-7cc2a8?style=flat-square)
 ![Chromium](https://img.shields.io/badge/Chromium-156-4c8bf5?style=flat-square)
 ![Linux](https://img.shields.io/badge/Linux-x86__64-e0a64b?style=flat-square)
 ![licença](https://img.shields.io/badge/licença-GPL--3.0-b07ce8?style=flat-square)
@@ -59,7 +59,7 @@ Ctrl+T e Ctrl+L abrem uma busca única: no topo a busca, o site que você já vi
 
 **Barra que recolhe com mola**
 
-Ctrl+Shift+S recolhe a barra e a página ocupa a janela. Encostar o mouse na borda traz a barra de volta com efeito de mola, empurrando a página.
+Ctrl+Shift+S recolhe a barra e a página ocupa a janela. Deixar o mouse meio segundo na borda traz a barra de volta com efeito de mola, empurrando a página; só passar pela borda a caminho de outro programa não abre.
 
 <img src="ranga/docs/img/collapsed.webp" alt="Página ocupando a janela inteira com a barra lateral recolhida">
 
@@ -98,7 +98,9 @@ Ctrl+clique e Shift+clique marcam abas; o menu vale pra todas: fechar, mover de 
 - **Abas divididas**: arraste uma aba da barra pra cima da página pra dividir à esquerda, à direita, em cima ou embaixo, abrir em nova janela ou levar pra outra janela do Ranga. Cada metade tem botões pra arrastar, separar e fechar.
 - **Grupos**: abas salvas num grupo recolhível na barra, com nome e ícone, que voltam ao reabrir.
 - **Mini player**: o que toca em outra aba aparece no pé da barra, com tocar/pausar, próxima e picture-in-picture.
-- **Nova aba** com saudação, tempo, atalhos, tarefas e notícias.
+- **Nova aba** com saudação, tempo da sua cidade, atalhos, tarefas e notícias.
+- **Avisos num cartão no pé da página**: link copiado, abas fechadas e arquivadas com Desfazer, aba recebida, download concluído. Aparecem com a barra recolhida e nos apps.
+- **Tradução do navegador sem o Chrome**: o Ranga baixa o tradutor do Chrome e a API `Translator` funciona em todos os espaços (as legendas traduzidas do Teams, por exemplo).
 - **Tema do sistema**: segue as cores do Ciel (o shell do meu desktop) e a transparência do material, no claro e no escuro.
 - **Janela pequena**: links vindos de outros apps abrem numa janela compacta; "Abrir no Ranga" leva pra janela principal.
 - **Volta de onde parou**: abas, espaços e nomes de aba voltam ao reabrir, até depois de uma falha.

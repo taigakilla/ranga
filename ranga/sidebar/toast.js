@@ -1,35 +1,14 @@
-const bar = document.getElementById("snackbar");
-const text = bar.querySelector(".k-snackbar__text");
-const button = bar.querySelector(".k-snackbar__action");
-let timer;
-let pending;
+let pending = null;
 
-function expire() {
-  const action = pending;
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg?.type !== "notice-action" || msg.id !== pending?.id) return;
+  const { run } = pending;
   pending = null;
-  action?.expired?.();
-}
+  run();
+});
 
-export function hideToast() {
-  bar.hidden = true;
-  expire();
-}
-
-export function toast(message, action, duration = 6000) {
-  expire();
-  pending = action;
-  text.textContent = message;
-  button.hidden = !action;
-  if (action) {
-    button.textContent = action.label;
-    button.onclick = (e) => {
-      e.stopPropagation();
-      pending = null;
-      hideToast();
-      action.run();
-    };
-  }
-  bar.hidden = false;
-  clearTimeout(timer);
-  timer = setTimeout(hideToast, duration);
+export async function toast(message, action, icon = "info") {
+  pending = action ? { id: crypto.randomUUID(), run: action.run } : null;
+  const { id: windowId } = await chrome.windows.getCurrent();
+  chrome.rangaPrivate.showNotice(windowId, icon, message, action?.label ?? "", pending?.id ?? "", () => void chrome.runtime.lastError);
 }

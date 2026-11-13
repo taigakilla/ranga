@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { greeting, parseNews, ago, weatherIcon, hourly, shortcuts } from "./newtab-model.js";
+import { greeting, parseNews, ago, weatherIcon, hourly, shortcuts, placesUrl, places } from "./newtab-model.js";
 
 test("a saudação segue a hora do dia", () => {
   assert.equal(greeting(6), "Bom dia");
@@ -46,4 +46,18 @@ test("os atalhos juntam fixadas e mais visitados sem repetir", () => {
     { url: "https://youtube.com/", title: "YouTube", pinned: true },
     { url: "https://github.com/", title: "github.com", pinned: false },
   ]);
+});
+
+test("a busca de cidade vira lugares com nome, estado e país", () => {
+  assert.equal(placesUrl(" Patos de Minas "), "https://geocoding-api.open-meteo.com/v1/search?name=Patos%20de%20Minas&count=5&language=pt&format=json");
+  const json = { results: [
+    { name: "Patos de Minas", admin1: "Minas Gerais", country: "Brasil", latitude: -18.58, longitude: -46.51 },
+    { name: "Mônaco", country: "Mônaco", latitude: 43.73, longitude: 7.42 },
+    { name: "Sem lugar" },
+  ] };
+  assert.deepEqual(places(json), [
+    { name: "Patos de Minas", label: "Patos de Minas, Minas Gerais, Brasil", latitude: -18.58, longitude: -46.51 },
+    { name: "Mônaco", label: "Mônaco", latitude: 43.73, longitude: 7.42 },
+  ]);
+  assert.deepEqual(places({}), []);
 });

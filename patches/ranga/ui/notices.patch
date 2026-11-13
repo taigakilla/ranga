@@ -1,0 +1,269 @@
+Avisos do Ranga num cartão no centro, embaixo da página (notice.html), no lugar da pílula do Chromium no topo e do aviso da barra lateral, que sumia com a barra recolhida: link copiado, imagem copiada, dados apagados, abas fechadas e arquivadas com Desfazer, aba recebida, download concluído. A barra lateral mostra o seu com rangaPrivate.showNotice.
+
+--- a/chrome/common/extensions/api/ranga_private.idl
++++ b/chrome/common/extensions/api/ranga_private.idl
+@@ -214,6 +214,17 @@
+         DOMString command,
+         optional DoneCallback callback);
+ 
++    // Shows a notice card at the bottom of the window's page, with a Kurobe
++    // icon name, the text and an optional action button. A click on the
++    // button sends the runtime message {type: "notice-action", id}.
++    static void showNotice(
++        long windowId,
++        DOMString icon,
++        DOMString text,
++        DOMString action,
++        DOMString id,
++        optional DoneCallback callback);
++
+     // Opens the site's information (connection, permissions, cookies) for
+     // the window's active tab, at the top of the page, as a click on the
+     // address bar's lock would.
+--- a/chrome/browser/extensions/api/ranga_private/ranga_private_api.h
++++ b/chrome/browser/extensions/api/ranga_private/ranga_private_api.h
+@@ -192,6 +192,15 @@
+       observation_{this};
+ };
+ 
++class RangaPrivateShowNoticeFunction : public ExtensionFunction {
++ public:
++  DECLARE_EXTENSION_FUNCTION("rangaPrivate.showNotice", UNKNOWN)
++
++ protected:
++  ~RangaPrivateShowNoticeFunction() override = default;
++  ResponseAction Run() override;
++};
++
+ class RangaPrivateStopFindingFunction : public ExtensionFunction {
+  public:
+   DECLARE_EXTENSION_FUNCTION("rangaPrivate.stopFinding", UNKNOWN)
+--- a/chrome/browser/extensions/api/ranga_private/ranga_private_api.cc
++++ b/chrome/browser/extensions/api/ranga_private/ranga_private_api.cc
+@@ -794,6 +794,22 @@
+   Release();
+ }
+ 
++ExtensionFunction::ResponseAction RangaPrivateShowNoticeFunction::Run() {
++  auto params = ranga_private::ShowNotice::Params::Create(args());
++  EXTENSION_FUNCTION_VALIDATE(params);
++
++  std::string error;
++  BrowserWindowInterface* browser =
++      BrowserForWindow(this, params->window_id, &error);
++  if (!browser) {
++    return RespondNow(Error(std::move(error)));
++  }
++  RangaShowNotice(browser, params->icon, base::UTF8ToUTF16(params->text),
++                  base::UTF8ToUTF16(params->action), params->id,
++                  base::OnceClosure());
++  return RespondNow(NoArguments());
++}
++
+ ExtensionFunction::ResponseAction RangaPrivateStopFindingFunction::Run() {
+   auto params = ranga_private::StopFinding::Params::Create(args());
+   EXTENSION_FUNCTION_VALIDATE(params);
+--- a/chrome/browser/ui/toasts/toast_controller.cc
++++ b/chrome/browser/ui/toasts/toast_controller.cc
+@@ -7,6 +7,7 @@
+ #include <memory>
+ #include <optional>
+ #include <string>
++#include <string_view>
+ #include <utility>
+ #include <vector>
+ 
+@@ -34,6 +35,7 @@
+ #include "chrome/browser/ui/toasts/toast_metrics.h"
+ #include "chrome/browser/ui/toasts/toast_view.h"
+ #include "chrome/browser/ui/views/frame/multi_contents_view.h"
++#include "chrome/browser/ui/views/frame/ranga_spotlight_view.h"
+ #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
+ #include "chrome/browser/ui/webui_browser/webui_browser.h"
+ #include "chrome/common/pref_names.h"
+@@ -50,6 +52,33 @@
+ 
+ DEFINE_USER_DATA(ToastController);
+ 
++namespace {
++
++std::string_view RangaToastIcon(ToastId id) {
++  switch (id) {
++    case ToastId::kLinkCopied:
++    case ToastId::kLinkToHighlightCopied:
++      return "link";
++    case ToastId::kImageCopied:
++    case ToastId::kVideoFrameCopied:
++      return "image";
++    case ToastId::kCopiedToClipboard:
++      return "clipboard-check";
++    case ToastId::kAddedToReadingList:
++      return "book-open";
++    case ToastId::kClearBrowsingData:
++      return "trash-2";
++    case ToastId::kClosePinnedTab:
++      return "pin";
++    case ToastId::kTranslate:
++      return "languages";
++    default:
++      return "info";
++  }
++}
++
++}  // namespace
++
+ ToastParams::ToastParams(ToastId id) : toast_id(id) {}
+ ToastParams::ToastParams(ToastParams&& other) noexcept = default;
+ ToastParams& ToastParams::operator=(ToastParams&& other) noexcept = default;
+@@ -137,6 +166,33 @@
+     return false;
+   }
+ 
++  const ToastSpecification* spec =
++      toast_registry_->GetToastSpecification(params.toast_id);
++  if (spec && !spec->has_menu()) {
++    const std::u16string body =
++        params.body_string_override.has_value()
++            ? params.body_string_override.value()
++            : FormatString(spec->body_string_id(),
++                           params.body_string_replacement_params,
++                           params.body_string_cardinality_param);
++    const std::u16string action =
++        spec->action_button_string_id().has_value()
++            ? FormatString(spec->action_button_string_id().value(),
++                           params.action_button_string_replacement_params,
++                           std::nullopt)
++            : std::u16string();
++    base::OnceClosure run =
++        action.empty() ? base::OnceClosure()
++                       : spec->GetActionButtonCallback(
++                             std::move(params.action_button_callback_data));
++    if (RangaShowNotice(browser_window_interface_,
++                        RangaToastIcon(params.toast_id), body, action,
++                        std::string_view(), std::move(run))) {
++      RecordToastTriggeredToShow(params.toast_id);
++      return true;
++    }
++  }
++
+   RecordToastTriggeredToShow(params.toast_id);
+   CloseToast(toasts::ToastCloseReason::kPreempted);
+ 
+--- a/chrome/browser/ui/views/frame/ranga_spotlight_view.cc
++++ b/chrome/browser/ui/views/frame/ranga_spotlight_view.cc
+@@ -6,7 +6,9 @@
+ 
+ #include "base/strings/string_number_conversions.h"
+ #include "base/command_line.h"
++#include "base/strings/escape.h"
+ #include "base/strings/string_util.h"
++#include "base/strings/utf_string_conversions.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ranga/ranga_links.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+@@ -118,6 +120,7 @@
+     return;
+   }
+   mode_.clear();
++  action_.Reset();
+   SetVisible(false);
+   on_hidden_.Run();
+ }
+@@ -140,6 +143,10 @@
+   const std::u16string& title = GetWebContents()->GetTitle();
+   if (base::StartsWith(title, u"ranga-spotlight:close")) {
+     Hide();
++  } else if (base::StartsWith(title, u"ranga-notice:action")) {
++    if (action_) {
++      std::move(action_).Run();
++    }
+   } else if (base::StartsWith(title, u"ranga-peek:shown")) {
+     if (auto* browser_view = views::AsViewClass<BrowserView>(parent())) {
+       if (RangaPeekView* peek = RangaPeekView::From(browser_view->browser())) {
+@@ -321,6 +328,15 @@
+                    kHeight);
+ }
+ 
++gfx::Rect RangaNoticeCard(BrowserView* browser_view) {
++  constexpr int kWidth = 472;
++  constexpr int kHeight = 112;
++  const gfx::Rect area = RangaContentsArea(browser_view);
++  const int width = std::min(kWidth, area.width());
++  return gfx::Rect(area.x() + (area.width() - width) / 2,
++                   area.bottom() - kHeight, width, kHeight);
++}
++
+ views::WebView* RangaWebViewOf(views::View* root,
+                                content::WebContents* contents) {
+   if (auto* web = views::AsViewClass<views::WebView>(root);
+@@ -347,7 +363,38 @@
+              /*focus=*/false);
+ }
+ 
++bool RangaShowNotice(BrowserWindowInterface* browser,
++                     std::string_view icon,
++                     std::u16string_view text,
++                     std::u16string_view action,
++                     std::string_view id,
++                     base::OnceClosure run) {
++  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
++          "ranga-native-chrome")) {
++    return false;
++  }
++  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
++  if (!browser_view) {
++    return false;
++  }
++  RangaSpotlightView* overlay = RangaOverlayFor(browser_view, "notice.html");
++  overlay->SetAction(std::move(run));
++  overlay->Show(
++      "icon=" + base::EscapeAllExceptUnreserved(icon) +
++          "&text=" + base::EscapeAllExceptUnreserved(base::UTF16ToUTF8(text)) +
++          "&action=" +
++          base::EscapeAllExceptUnreserved(base::UTF16ToUTF8(action)) +
++          "&id=" + base::EscapeAllExceptUnreserved(id) + "&n=",
++      RangaNoticeCard(browser_view), /*focus=*/false);
++  return true;
++}
++
+ void RangaLayoutPanes(BrowserView* browser_view) {
++  if (RangaSpotlightView* notice =
++          RangaFindOverlay(browser_view, "notice.html");
++      notice && notice->GetVisible()) {
++    notice->SetBoundsRect(RangaNoticeCard(browser_view));
++  }
+   if (RangaSpotlightView* download =
+           RangaFindOverlay(browser_view, "download.html");
+       download && download->GetVisible()) {
+--- a/chrome/browser/ui/views/frame/ranga_spotlight_view.h
++++ b/chrome/browser/ui/views/frame/ranga_spotlight_view.h
+@@ -42,6 +42,7 @@
+   void Preload();
+   void Hide();
+   void Adopt(RangaSpotlightView* source);
++  void SetAction(base::OnceClosure action) { action_ = std::move(action); }
+ 
+   void CloseContents(content::WebContents* source) override;
+   void TitleWasSet(content::NavigationEntry* entry) override;
+@@ -55,6 +56,7 @@
+   std::string mode_;
+   base::RepeatingClosure on_hidden_;
+   std::unique_ptr<content::WebContents> spare_;
++  base::OnceClosure action_;
+   int generation_ = 0;
+ };
+ 
+@@ -75,6 +77,13 @@
+ 
+ void RangaShowDownload(BrowserWindowInterface* browser, uint32_t id);
+ 
++bool RangaShowNotice(BrowserWindowInterface* browser,
++                     std::string_view icon,
++                     std::u16string_view text,
++                     std::u16string_view action,
++                     std::string_view id,
++                     base::OnceClosure run);
++
+ void RangaShowNavigationHint(BrowserWindowInterface* browser, bool back);
+ 
+ void RangaLayoutPanes(BrowserView* browser_view);

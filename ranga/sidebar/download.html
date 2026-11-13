@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="kurobe/kurobe.css">
+  <link rel="stylesheet" href="kurobe/components.css">
+  <link rel="stylesheet" href="download.css">
+  <style id="ranga-theme"></style>
+</head>
+<body class="k-type-body closed">
+  <section id="card" class="card" role="status" aria-live="polite">
+    <span id="icon" class="icon"></span>
+    <div class="body">
+      <span id="name" class="name k-type-label"></span>
+      <span id="status" class="status k-type-caption"></span>
+      <span id="bar" class="bar"></span>
+      <div id="actions" class="actions" hidden>
+        <button id="open" class="k-button k-button--tonal k-type-button" type="button">Abrir</button>
+        <button id="show" class="k-button k-button--text k-type-button" type="button">Mostrar na pasta</button>
+      </div>
+    </div>
+    <button id="close" class="k-icon-button k-icon-button--small k-state close" type="button" title="Fechar" data-icon="x"></button>
+  </section>
+  <script type="module" src="download.js"></script>
+</body>
+</html>

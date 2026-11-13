@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.7 — 13/11/2026
+- **Avisos num cartão no pé da página**: "Link copiado" (Ctrl+Shift+C e os outros jeitos de copiar link), imagem copiada, dados apagados e os avisos da barra lateral (abas fechadas e arquivadas com Desfazer, aba recebida, download concluído) aparecem num cartão no centro, embaixo da página, no estilo do cartão de download. Antes eram uma pílula pequena no topo ou ficavam no pé da barra, escondidos com ela recolhida.
+- **Downloads nos apps em cartão**: um download começado num PWA mostra um cartão no canto da janela do app, com o nome, o progresso, Abrir e Mostrar na pasta. A bolha do Chromium não abre mais sozinha quando o download termina.
+- **Barra recolhida não abre sem querer**: o mouse tem que ficar meio segundo na borda pra ela abrir, e passar pela borda a caminho de um programa ao lado não abre mais a barra.
+- **Arrastar link pra barra abre uma aba**: o link (ou a busca do texto arrastado) abre numa aba nova no espaço atual, com a conta dele, em vez de numa janela nova.
+- **Cidade do tempo**: Configurações → Busca e início → Cidade do tempo escolhe a cidade da previsão da nova aba. Sem ela e sem o Ciel (no PC, por exemplo), a própria nova aba pergunta a cidade.
+- **Tradução do navegador sem o Chrome**: a instalação baixa do Google o tradutor do Chrome e o pacote inglês↔português (`ranga-translatekit`, conferindo o sha256), e a API `Translator` funciona sem o Chrome instalado, também nos espaços com conta própria. As legendas traduzidas do Teams voltam a funcionar no PC.
+
 ## 0.5.6 — 04/11/2026
 - **Aba que dorme não se perde mais**: ao dormir (automático, pelo menu ou pelo Chromium economizando memória), o Chromium trocava a aba por outra com id novo, e a barra perdia a fixada, o espaço, o nome e a ilha dela; a fixada aparecia fechada e a aba caía no espaço ativo. Agora a aba dorme no lugar, com o mesmo id, o mesmo container e tudo o que estava ligado a ela.
 - **Janela nova já com o Spotlight**: Ctrl+N e Ctrl+Shift+N abrem a janela com o Spotlight aberto e com o foco nele, é só digitar. Cada janela deixa um Spotlight pronto de reserva, então ele aparece junto com a janela, sem piscar. O Spotlight aberto também acompanha a janela quando ela muda de tamanho.

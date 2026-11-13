@@ -304,7 +304,6 @@ body.compact .ess { height: 44px; }
 .tab__audio.k-icon-button { flex: none; width: 24px; height: 24px; color: var(--k-color-primary); }
 .tab__audio--muted.k-icon-button { color: var(--k-color-on-surface-variant); }
 .tab__audio[hidden] { display: none; }
-.k-snackbar__text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; padding: var(--k-space-xs) 0; }
 .update-card { display: flex; align-items: center; gap: var(--k-space-sm); margin: 0 var(--k-space-xs) var(--k-space-xs); padding: var(--k-space-xs) var(--k-space-xs) var(--k-space-xs) var(--k-space-md); border-radius: var(--k-shape-large); background: var(--k-color-primary-container); color: var(--k-color-on-primary-container); }
 .update-card[hidden] { display: none; }
 .update-card { animation: view-in var(--k-motion-spring-spatial-default-duration) var(--k-motion-spring-spatial-default); }

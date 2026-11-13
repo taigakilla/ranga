@@ -1,0 +1,16 @@
+Tradução do navegador também nos espaços com conta própria: o Chromium só liberava a API de tradução na sessão principal, e o Teams instalado num espaço ficava sem legenda traduzida.
+
+--- a/chrome/browser/on_device_translation/translation_manager_impl.cc
++++ b/chrome/browser/on_device_translation/translation_manager_impl.cc
+@@ -187,11 +187,6 @@
+ }
+ 
+ bool TranslationManagerImpl::AccessedFromValidStoragePartition() {
+-  if (process_host()->GetStoragePartition() !=
+-      browser_context()->GetDefaultStoragePartition()) {
+-    return !origin_.GetURL().SchemeIsHTTPOrHTTPS();
+-  }
+-
+   return true;
+ }
+ 

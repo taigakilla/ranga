@@ -1,0 +1,112 @@
+Downloads nos PWAs: a janela de um app não tem barra lateral, então um download começado nela mostra um cartão do Ranga no canto inferior direito (download.html): nome, progresso, Abrir e Mostrar na pasta. A bolha do Chromium deixa de abrir sozinha quando o download termina.
+
+--- a/chrome/browser/download/download_prefs.cc
++++ b/chrome/browser/download/download_prefs.cc
+@@ -364,7 +364,7 @@
+   registry->RegisterIntegerPref(policy::policy_prefs::kDownloadRestrictions, 0);
+   // TODO(chlily): Clean up the following two prefs once SysUI integration is
+   // enabled by default.
+-  registry->RegisterBooleanPref(prefs::kDownloadBubblePartialViewEnabled, true);
++  registry->RegisterBooleanPref(prefs::kDownloadBubblePartialViewEnabled, false);
+   registry->RegisterIntegerPref(prefs::kDownloadBubblePartialViewImpressions,
+                                 0);
+ 
+--- a/chrome/browser/download/download_ui_controller.cc
++++ b/chrome/browser/download/download_ui_controller.cc
+@@ -40,6 +40,7 @@
+ #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
+ #include "chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.h"
++#include "chrome/browser/ui/views/frame/ranga_spotlight_view.h"
+ #include "chrome/browser/ui/web_applications/app_browser_controller.h"
+ #include "extensions/browser/extension_util.h"
+ #endif
+@@ -255,6 +256,9 @@
+ 
+   content::WebContents* web_contents =
+       content::DownloadItemUtils::GetWebContents(item);
++#if !BUILDFLAG(IS_ANDROID)
++  BrowserWindowInterface* app_browser = nullptr;
++#endif
+   if (web_contents) {
+ #if BUILDFLAG(IS_ANDROID)
+     if (!needs_to_render) {
+@@ -264,6 +268,9 @@
+     BrowserWindowInterface* browser =
+         GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+             web_contents);
++    if (browser && web_app::AppBrowserController::IsWebApp(browser)) {
++      app_browser = browser;
++    }
+     // If the download occurs in a new tab (or web app window), and it's not a
+     // save page download (started before initial navigation completed) close
+     // it. Avoid calling CloseContents if the tab is not in this browser's tab
+@@ -286,4 +293,9 @@
+ 
+   DownloadItemModel(item).SetWasUINotified(true);
+   delegate_->OnNewDownloadReady(item);
++#if !BUILDFLAG(IS_ANDROID)
++  if (app_browser) {
++    RangaShowDownload(app_browser, item->GetId());
++  }
++#endif
+ }
+--- a/chrome/browser/ui/views/frame/ranga_spotlight_view.cc
++++ b/chrome/browser/ui/views/frame/ranga_spotlight_view.cc
+@@ -313,6 +313,14 @@
+   return overlay;
+ }
+ 
++gfx::Rect RangaDownloadCard(BrowserView* browser_view) {
++  constexpr int kWidth = 404;
++  constexpr int kHeight = 136;
++  const gfx::Rect area = RangaContentsArea(browser_view);
++  return gfx::Rect(area.right() - kWidth, area.bottom() - kHeight, kWidth,
++                   kHeight);
++}
++
+ views::WebView* RangaWebViewOf(views::View* root,
+                                content::WebContents* contents) {
+   if (auto* web = views::AsViewClass<views::WebView>(root);
+@@ -329,7 +337,22 @@
+ 
+ }  // namespace
+ 
++void RangaShowDownload(BrowserWindowInterface* browser, uint32_t id) {
++  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
++  if (!browser_view) {
++    return;
++  }
++  RangaOverlayFor(browser_view, "download.html")
++      ->Show(base::NumberToString(id), RangaDownloadCard(browser_view),
++             /*focus=*/false);
++}
++
+ void RangaLayoutPanes(BrowserView* browser_view) {
++  if (RangaSpotlightView* download =
++          RangaFindOverlay(browser_view, "download.html");
++      download && download->GetVisible()) {
++    download->SetBoundsRect(RangaDownloadCard(browser_view));
++  }
+   if (!RangaOwnsWindow(browser_view)) {
+     return;
+   }
+--- a/chrome/browser/ui/views/frame/ranga_spotlight_view.h
++++ b/chrome/browser/ui/views/frame/ranga_spotlight_view.h
+@@ -1,6 +1,7 @@
+ #ifndef CHROME_BROWSER_UI_VIEWS_FRAME_RANGA_SPOTLIGHT_VIEW_H_
+ #define CHROME_BROWSER_UI_VIEWS_FRAME_RANGA_SPOTLIGHT_VIEW_H_
+ 
++#include <cstdint>
+ #include <memory>
+ #include <string>
+ #include <string_view>
+@@ -72,6 +73,8 @@
+ 
+ bool RangaShowFind(BrowserWindowInterface* browser, int step);
+ 
++void RangaShowDownload(BrowserWindowInterface* browser, uint32_t id);
++
+ void RangaShowNavigationHint(BrowserWindowInterface* browser, bool back);
+ 
+ void RangaLayoutPanes(BrowserView* browser_view);

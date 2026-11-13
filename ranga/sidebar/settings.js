@@ -6,6 +6,7 @@ import { glyph } from "./kurobe/icons.mjs";
 import { loadAliases, validAlias, SCOPES } from "./aliases-model.js";
 import { typed, shown } from "./browser-prefs.js";
 import { current, assign, reset, toMap, label, fromEvent, SHORTCUTS } from "./shortcuts-model.js";
+import { placesUrl, places } from "./newtab-model.js";
 import "./settings-sync.js";
 
 const themeStyle = document.getElementById("ranga-theme");
@@ -52,6 +53,39 @@ for (const group of document.querySelectorAll(".k-segmented[data-key]")) {
     option.addEventListener("click", () => save(group.dataset.key, group.dataset.type === "number" ? Number(option.dataset.value) : option.dataset.value));
   }
 }
+
+async function paintPlace(message) {
+  const { weatherPlace } = await chrome.storage.local.get("weatherPlace");
+  document.getElementById("weather-place").textContent = message ?? (weatherPlace ? weatherPlace.label : "Usa a do Ciel. Sem ela, a nova aba pergunta a cidade.");
+  document.getElementById("weather-place-clear").hidden = !weatherPlace;
+}
+paintPlace();
+
+document.getElementById("weather-place-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const query = form.query.value.trim();
+  if (!query) return;
+  const results = document.getElementById("weather-place-results");
+  const found = await fetch(placesUrl(query)).then((r) => r.json()).then(places).catch(() => []);
+  paintPlace(found.length ? undefined : "Não achei essa cidade.");
+  results.replaceChildren(...found.map((place) => {
+    const row = Object.assign(document.createElement("button"), { className: "setting setting--link", type: "button" });
+    row.append(Object.assign(document.createElement("span"), { className: "text k-type-label", textContent: place.label }));
+    row.onclick = async () => {
+      await chrome.storage.local.set({ weatherPlace: place });
+      form.query.value = "";
+      results.replaceChildren();
+      paintPlace();
+    };
+    return row;
+  }));
+});
+
+document.getElementById("weather-place-clear").onclick = async () => {
+  await chrome.storage.local.remove("weatherPlace");
+  paintPlace();
+};
 
 const themePort = chrome.runtime.connectNative("ranga.theme");
 themePort.onMessage.addListener((msg) => {

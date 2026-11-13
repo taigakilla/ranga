@@ -38,7 +38,7 @@ mkdir -p "$dir/app/theme"
 cp "$root/ranga/theme/ranga_theme.py" "$root/ranga/theme/ranga_theme_host.py" "$root/ranga/theme/hook-theme-set" "$dir/app/theme/"
 
 cp "$root/ranga/branding/"icon-*.png "$root/ranga/branding/icon.svg" "$dir/icons/"
-cp "$root/ranga/package/ranga.desktop" "$root/ranga/package/install.sh" "$root/ranga/package/ranga-update" "$dir/"
+cp "$root/ranga/package/ranga.desktop" "$root/ranga/package/install.sh" "$root/ranga/package/ranga-update" "$root/ranga/package/ranga-translatekit" "$dir/"
 echo "$version" > "$dir/VERSION"
 echo "$build" > "$dir/BUILD"
 echo "$build" > "$dir/app/BUILD"

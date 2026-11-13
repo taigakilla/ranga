@@ -39,7 +39,12 @@
           <span class="k-icon" data-icon="map-pin"></span>
           <h2 id="weather-title" class="k-type-panel">Tempo</h2>
         </header>
-        <p id="weather-empty" class="k-type-caption hint" hidden>Escolha a cidade no Ciel (<code>ciel-weather-location</code>) pra ver a previsão.</p>
+        <p id="weather-empty" class="k-type-caption hint" hidden>Digite sua cidade pra ver a previsão.</p>
+        <form id="weather-form" class="task-form" hidden>
+          <input id="weather-input" class="k-text-field k-type-label" placeholder="Sua cidade" autocomplete="off" maxlength="80">
+          <button class="task-add k-icon-button k-state" type="submit" title="Buscar" data-icon="search"></button>
+        </form>
+        <ul id="weather-places" class="places"></ul>
         <ol id="hours" class="hours"></ol>
       </article>
 
