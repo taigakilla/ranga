@@ -2,20 +2,24 @@ Spotlight do Ranga: Ctrl+T, Ctrl+L, Alt+D e Ctrl+K abrem uma camada sobre a jane
 com a página spotlight.html da barra lateral (fundo transparente), em vez da nova
 aba e da barra de endereço nativas.
 
---- a/chrome/browser/ui/BUILD.gn
-+++ b/chrome/browser/ui/BUILD.gn
-@@ -3551,6 +3551,8 @@
-       "views/frame/base_tab_strip_region_view.cc",
-       "views/frame/base_tab_strip_region_view.h",
-       "views/frame/browser_view.cc",
-+      "views/frame/ranga_spotlight_view.cc",
-+      "views/frame/ranga_spotlight_view.h",
-       "views/frame/horizontal_tab_strip_region_view.cc",
-       "views/frame/horizontal_tab_strip_region_view.h",
-       "views/frame/vertical_tab_strip_region_view.cc",
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -767,7 +767,11 @@ source_set("browser_view_header") {
+ }
+ 
+ source_set("browser_view") {
+-  sources = [ "browser_view.cc" ]
++  sources = [
++    "browser_view.cc",
++    "ranga_spotlight_view.cc",
++    "ranga_spotlight_view.h",
++  ]
+   public_deps = [
+     ":browser_view_header",
+     "//chrome/browser:browser_public_dependencies",
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -177,6 +177,7 @@
+@@ -178,6 +178,7 @@
  #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate_impl.h"
  #include "chrome/browser/ui/views/frame/main_background_region_view.h"
  #include "chrome/browser/ui/views/frame/multi_contents_view.h"
@@ -23,7 +27,7 @@ aba e da barra de endereço nativas.
  #include "chrome/browser/ui/views/frame/multi_contents_view_delegate.h"
  #include "chrome/browser/ui/views/frame/multi_contents_view_drop_target_controller.h"
  #include "chrome/browser/ui/views/frame/safe_invoke/safe_invoke.h"
-@@ -1489,6 +1490,28 @@
+@@ -1489,6 +1490,28 @@ bool RangaHidesNativeChrome(const Browse
           browser->GetType() == BrowserWindowInterface::Type::TYPE_NORMAL;
  }
  
@@ -52,20 +56,20 @@ aba e da barra de endereço nativas.
  }  // namespace
  
  bool BrowserView::GetTabStripVisible() const {
-@@ -6028,6 +6051,13 @@
-   }
+@@ -6024,6 +6047,13 @@ bool BrowserView::AcceleratorPressed(con
  
    UpdateAcceleratorMetrics(accelerator, command_id);
-+
+ 
 +  if (RangaHidesNativeChrome(browser_) &&
 +      (command_id == IDC_NEW_TAB || command_id == IDC_FOCUS_LOCATION ||
 +       command_id == IDC_FOCUS_SEARCH)) {
 +    ShowRangaSpotlight(this, command_id == IDC_NEW_TAB);
 +    return true;
 +  }
- 
++
    if (command_id == IDC_CLEAR_BROWSING_DATA) {
      views::ElementTrackerViews::GetInstance()->NotifyCustomEvent(
+         browsing_data_important_sites_util::
 --- /dev/null
 +++ b/chrome/browser/ui/views/frame/ranga_spotlight_view.h
 @@ -0,0 +1,37 @@

@@ -26,7 +26,7 @@ Informações do site (conexão, permissões, cookies, ruído contra fingerprint
 +++ b/chrome/browser/extensions/api/ranga_private/BUILD.gn
 @@ -19,7 +19,9 @@
      "//chrome/browser/ranga",
-     "//chrome/browser/ui",
+     "//chrome/browser/ui:browser_commands",
      "//chrome/browser/ui:browser_window_header",
 +    "//chrome/browser/ui:bubble_anchor_util",
      "//chrome/browser/ui/extensions",

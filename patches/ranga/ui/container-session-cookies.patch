@@ -8,17 +8,17 @@ Containers guardam os cookies de sessão como a partição principal: login feit
  
 +#include <algorithm>
  #include <memory>
+ #include <optional>
  #include <string>
- #include <string_view>
-@@ -39,6 +40,7 @@
- #include "chrome/browser/domain_reliability/service_factory.h"
+@@ -41,6 +42,7 @@
+ #include "chrome/browser/net/disk_cache_dir_util.h"
  #include "chrome/browser/net/system_network_context_manager.h"
  #include "chrome/browser/profiles/profile.h"
 +#include "chrome/browser/ranga/ranga_containers.h"
  #include "chrome/browser/signin/signin_util.h"
  #include "chrome/browser/ssl/sct_reporting_service.h"
  #include "chrome/browser/ssl/sct_reporting_service_factory.h"
-@@ -1439,7 +1441,9 @@
+@@ -1449,7 +1451,9 @@ void ProfileNetworkContextService::Confi
          base::FilePath(chrome::kReportingAndNelStoreFilename);
  #endif  // BUILDFLAG(ENABLE_REPORTING)
  

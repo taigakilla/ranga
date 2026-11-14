@@ -61,7 +61,7 @@ API privada chrome.rangaPrivate, só para a barra lateral do Ranga: ações das 
 +};
 --- a/chrome/common/extensions/api/api_sources.gni
 +++ b/chrome/common/extensions/api/api_sources.gni
-@@ -90,6 +90,7 @@
+@@ -89,6 +89,7 @@ if (enable_extensions) {
      "indigo_private.webidl",
      "language_settings_private.webidl",
      "passwords_private.webidl",
@@ -71,7 +71,7 @@ API privada chrome.rangaPrivate, só para a barra lateral do Ranga: ações das 
      "settings_private.idl",
 --- a/chrome/common/extensions/api/_api_features.json
 +++ b/chrome/common/extensions/api/_api_features.json
-@@ -589,6 +589,10 @@
+@@ -553,6 +553,10 @@
      "dependencies": ["permission:identity"],
      "contexts": ["privileged_extension"]
    },
@@ -84,32 +84,31 @@ API privada chrome.rangaPrivate, só para a barra lateral do Ranga: ações das 
      "contexts": [
 --- a/chrome/common/extensions/api/_permission_features.json
 +++ b/chrome/common/extensions/api/_permission_features.json
-@@ -511,6 +511,12 @@
-   "identity.email": {
+@@ -482,6 +482,12 @@
      "channel": "stable",
      "extension_types": ["extension", "platform_app"]
-+  },
+   },
 +  "rangaPrivate": {
 +    "channel": "stable",
 +    "extension_types": ["extension"],
 +    "allowlist": ["2E76815F710A158780761A7A6262260BD23BC275"],
 +    "location": "component"
-   },
++  },
    "indigoPrivate": {
      "channel": "stable",
+     "extension_types": ["extension"],
 --- a/extensions/common/mojom/api_permission_id.mojom
 +++ b/extensions/common/mojom/api_permission_id.mojom
-@@ -299,6 +299,7 @@
-   kBluetoothPeripheral = 272,
-   kPublicSuffix = 273,
-   kEnterpriseWebrtc = 274,
-+  kRangaPrivate = 275,
- 
-   // Add new entries at the end of the enum and be sure to update the
+@@ -305,5 +305,6 @@ enum APIPermissionID {
    // "ExtensionPermission3" enum in
+   // tools/metrics/histograms/metadata/extensions/enums.xml (by running
+   // update_extension_permission.py).
++  kRangaPrivate = 999,
+   kSyncVaultProvider = 1000,
+ };
 --- a/chrome/common/extensions/permissions/chrome_api_permissions.cc
 +++ b/chrome/common/extensions/permissions/chrome_api_permissions.cc
-@@ -182,6 +182,8 @@
+@@ -175,6 +175,8 @@ constexpr APIPermissionInfo::InitInfo pe
       APIPermissionInfo::kFlagCannotBeOptional},
      {APIPermissionID::kPdfViewerPrivate, "pdfViewerPrivate"},
      {APIPermissionID::kIndigoPrivate, "indigoPrivate"},
@@ -120,7 +119,7 @@ API privada chrome.rangaPrivate, só para a barra lateral do Ranga: ações das 
      {APIPermissionID::kResourcesPrivate, "resourcesPrivate",
 --- a/chrome/browser/extensions/api/BUILD.gn
 +++ b/chrome/browser/extensions/api/BUILD.gn
-@@ -115,6 +115,7 @@
+@@ -114,6 +114,7 @@ group("api_implementations") {
      public_deps += [
        "//chrome/browser/extensions/api/contextual_tasks_private",
        "//chrome/browser/extensions/api/indigo_private",
@@ -148,7 +147,7 @@ API privada chrome.rangaPrivate, só para a barra lateral do Ranga: ações das 
 +    "//chrome/app:command_ids",
 +    "//chrome/browser/extensions",
 +    "//chrome/browser/profiles",
-+    "//chrome/browser/ui",
++    "//chrome/browser/ui:browser_commands",
 +    "//chrome/browser/ui:browser_window_header",
 +    "//chrome/browser/ui/extensions",
 +    "//chrome/browser/ui/toolbar",
@@ -418,7 +417,7 @@ API privada chrome.rangaPrivate, só para a barra lateral do Ranga: ações das 
 +}  // namespace extensions
 --- a/chrome/browser/ui/extensions/BUILD.gn
 +++ b/chrome/browser/ui/extensions/BUILD.gn
-@@ -54,6 +54,7 @@
+@@ -54,6 +54,7 @@ source_set("extensions") {
      "extensions_overrides/simple_overrides.h",
      "extensions_toolbar_view_model.h",
      "icon_with_badge_image_source.h",
@@ -426,7 +425,7 @@ API privada chrome.rangaPrivate, só para a barra lateral do Ranga: ações das 
      "reload_page_dialog_controller.h",
      "search_override_stack.h",
      "settings_api_bubble_helpers.h",
-@@ -173,6 +174,7 @@
+@@ -173,6 +174,7 @@ source_set("impl") {
      "extension_uninstall_dialog_impl.cc",
      "extensions_container.cc",
      "extensions_menu_view_model.cc",
@@ -496,7 +495,7 @@ API privada chrome.rangaPrivate, só para a barra lateral do Ranga: ações das 
 +}
 --- a/chrome/browser/ui/views/extensions/extension_action_delegate_desktop.cc
 +++ b/chrome/browser/ui/views/extensions/extension_action_delegate_desktop.cc
-@@ -8,15 +8,55 @@
+@@ -8,16 +8,56 @@
  
  #include "base/check.h"
  #include "base/check_deref.h"
@@ -512,7 +511,7 @@ API privada chrome.rangaPrivate, só para a barra lateral do Ranga: ações das 
  #include "extensions/common/api/extension_action/action_info.h"
  #include "extensions/common/command.h"
  #include "ui/views/view.h"
-+
+ 
 +namespace {
 +
 +constexpr int kRangaPopupAnchorId = 0x52414e47;
@@ -549,10 +548,11 @@ API privada chrome.rangaPrivate, só para a barra lateral do Ranga: ações das 
 +}
 +
 +}  // namespace
- 
++
  using extensions::ActionInfo;
  
-@@ -89,10 +129,14 @@
+ ExtensionActionDelegateDesktop::ExtensionActionDelegateDesktop(
+@@ -89,10 +129,14 @@ void ExtensionActionDelegateDesktop::Sho
    views::BubbleBorder::Arrow arrow =
        extensions_container_views_ ? extensions_container_views_->GetPopupArrow()
                                    : views::BubbleBorder::TOP_RIGHT;

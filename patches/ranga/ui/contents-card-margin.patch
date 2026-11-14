@@ -10,7 +10,7 @@ Página como cartão: respiro de 8 px no topo, à direita e embaixo, e cantos de
  #include "base/i18n/rtl.h"
  #include "base/numerics/safe_conversions.h"
  #include "base/trace_event/common/trace_event_common.h"
-@@ -1418,11 +1419,16 @@
+@@ -1496,11 +1497,16 @@ BrowserViewTabbedLayoutImpl::CalculatePr
      content_right =
          std::min(content_right, browser_params.visual_client_area.right());
    }
@@ -31,15 +31,15 @@ Página como cartão: respiro de 8 px no topo, à direita e embaixo, e cantos de
  
    // Maybe expand and clip the web contents to avoid issues during animation.
    if (features::UseSidePanelFlyoverAnimation()) {
-@@ -1483,6 +1489,11 @@
-       }
+@@ -1852,6 +1858,11 @@ void BrowserViewTabbedLayoutImpl::DoPost
      }
      views().multi_contents_view->SetBackgroundRadii(content_corners);
-+  }
+   }
 +  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
 +          "ranga-native-chrome") &&
 +      !is_fullscreen(layout_data_->window_state)) {
 +    views().multi_contents_view->SetBackgroundRadii(gfx::RoundedCornersF(12));
-   }
++  }
  
-   // Make final visual adjustments required for child views to paint.
+   int side_panel_start = layout_data_->revised_params.visual_client_area.x();
+   int side_panel_end =

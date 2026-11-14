@@ -115,7 +115,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
 +}
 --- /dev/null
 +++ b/chrome/browser/ui/views/frame/ranga_peek_view.h
-@@ -0,0 +1,138 @@
+@@ -0,0 +1,132 @@
 +// Copyright 2026 The Ranga Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -204,12 +204,6 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
 +  void RunFileChooser(content::RenderFrameHost* render_frame_host,
 +                      scoped_refptr<content::FileSelectListener> listener,
 +                      const blink::mojom::FileChooserParams& params) override;
-+  void FindReply(content::WebContents* web_contents,
-+                 int request_id,
-+                 int number_of_matches,
-+                 const gfx::Rect& selection_rect,
-+                 int active_match_ordinal,
-+                 bool final_update) override;
 +  void WebContentsCreated(content::WebContents* source_contents,
 +                          const content::GlobalRenderFrameHostId& opener_id,
 +                          const std::string& frame_name,
@@ -256,7 +250,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
 +#endif  // CHROME_BROWSER_UI_VIEWS_FRAME_RANGA_PEEK_VIEW_H_
 --- /dev/null
 +++ b/chrome/browser/ui/views/frame/ranga_peek_view.cc
-@@ -0,0 +1,475 @@
+@@ -0,0 +1,496 @@
 +// Copyright 2026 The Ranga Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -274,23 +268,34 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
 +#include "base/strings/utf_string_conversions.h"
 +#include "base/task/sequenced_task_runner.h"
 +#include "base/time/time.h"
++#include "chrome/browser/content_settings/page_specific_content_settings_delegate.h"
++#include "chrome/browser/extensions/tab_helper.h"
++#include "chrome/browser/favicon/favicon_utils.h"
 +#include "chrome/browser/file_select_helper.h"
++#include "chrome/browser/password_manager/chrome_password_manager_client.h"
 +#include "chrome/browser/profiles/profile.h"
 +#include "chrome/browser/ranga/ranga_containers.h"
 +#include "chrome/browser/ranga/ranga_links.h"
 +#include "chrome/browser/ranga/ranga_sidebar.h"
 +#include "chrome/browser/sessions/session_tab_helper_factory.h"
++#include "chrome/browser/ssl/https_only_mode_tab_helper.h"
++#include "chrome/browser/translate/chrome_translate_client.h"
 +#include "chrome/browser/ui/browser_tabstrip.h"
 +#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
++#include "chrome/browser/ui/find_bar/find_bar_state.h"
 +#include "chrome/browser/ui/navigator/browser_navigator_params.h"
++#include "chrome/browser/ui/prefs/prefs_tab_helper.h"
 +#include "chrome/browser/ui/tab_helpers.h"
 +#include "chrome/browser/ui/tabs/tab_strip_model.h"
 +#include "chrome/browser/ui/views/frame/browser_view.h"
 +#include "chrome/browser/ui/views/frame/multi_contents_view.h"
 +#include "chrome/browser/ui/views/frame/ranga_spotlight_view.h"
 +#include "chrome/browser/ui/web_modal/browser_window_modal_dialog_delegate.h"
-+#include "components/find_in_page/find_tab_helper.h"
++#include "components/blocked_content/popup_blocker_tab_helper.h"
++#include "components/content_settings/browser/page_specific_content_settings.h"
 +#include "components/input/native_web_keyboard_event.h"
++#include "components/permissions/permission_recovery_success_rate_tracker.h"
++#include "components/permissions/permission_request_manager.h"
 +#include "components/sessions/content/session_tab_helper.h"
 +#include "components/web_modal/web_contents_modal_dialog_manager.h"
 +#include "content/public/browser/favicon_status.h"
@@ -361,6 +366,27 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
 +  return peek->Open(source, params, contents);
 +}
 +
++void AttachPeekHelpers(content::WebContents* contents) {
++  FindBarState::ConfigureWebContents(contents);
++  web_modal::WebContentsModalDialogManager::CreateForWebContents(contents);
++  permissions::PermissionRequestManager::CreateForWebContents(contents);
++  permissions::PermissionRecoverySuccessRateTracker::CreateForWebContents(
++      contents);
++  if (!content_settings::PageSpecificContentSettings::GetDelegateForWebContents(
++          contents)) {
++    content_settings::PageSpecificContentSettings::CreateForWebContents(
++        contents,
++        std::make_unique<PageSpecificContentSettingsDelegate>(contents));
++  }
++  favicon::CreateContentFaviconDriverForWebContents(contents);
++  extensions::TabHelper::CreateForWebContents(contents);
++  ChromePasswordManagerClient::CreateForWebContents(contents);
++  ChromeTranslateClient::CreateForWebContents(contents);
++  PrefsTabHelper::CreateForWebContents(contents);
++  HttpsOnlyModeTabHelper::CreateForWebContents(contents);
++  blocked_content::PopupBlockerTabHelper::CreateForWebContents(contents);
++}
++
 +}  // namespace
 +
 +RangaPeekView::RangaPeekView(BrowserView* browser_view)
@@ -405,6 +431,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
 +    Release();
 +  }
 +  TabHelpers::AttachTabHelpers(contents.get());
++  AttachPeekHelpers(contents.get());
 +  contents->SetDelegate(this);
 +  if (auto* dialogs =
 +          web_modal::WebContentsModalDialogManager::FromWebContents(
@@ -589,18 +616,6 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
 +                                   params);
 +}
 +
-+void RangaPeekView::FindReply(content::WebContents* web_contents,
-+                              int request_id,
-+                              int number_of_matches,
-+                              const gfx::Rect& selection_rect,
-+                              int active_match_ordinal,
-+                              bool final_update) {
-+  if (auto* find = find_in_page::FindTabHelper::FromWebContents(web_contents)) {
-+    find->HandleFindReply(request_id, number_of_matches, selection_rect,
-+                          active_match_ordinal, final_update);
-+  }
-+}
-+
 +void RangaPeekView::WebContentsCreated(
 +    content::WebContents* source_contents,
 +    const content::GlobalRenderFrameHostId& opener_id,
@@ -732,28 +747,9 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
 +  peek->RequestFocus();
 +  return true;
 +}
---- a/chrome/browser/ui/BUILD.gn
-+++ b/chrome/browser/ui/BUILD.gn
-@@ -3551,6 +3551,8 @@
-       "views/frame/base_tab_strip_region_view.cc",
-       "views/frame/base_tab_strip_region_view.h",
-       "views/frame/browser_view.cc",
-+      "views/frame/ranga_peek_view.cc",
-+      "views/frame/ranga_peek_view.h",
-       "views/frame/ranga_spotlight_view.cc",
-       "views/frame/ranga_spotlight_view.h",
-       "views/frame/ranga_shortcuts.cc",
-@@ -3586,6 +3588,7 @@
-       "//chrome/browser/preloading/bookmarkbar_preload",
-       "//chrome/browser/preloading/new_tab_page_preload",
-       "//chrome/browser/preloading/prerender",
-+      "//chrome/browser/ranga",
-       "//chrome/browser/ui:sad_tab",
-       "//chrome/browser/ui:sad_tab_impl",
-       "//chrome/browser/ui/actions",
 --- a/chrome/browser/ui/tab_helpers.h
 +++ b/chrome/browser/ui/tab_helpers.h
-@@ -79,6 +79,10 @@
+@@ -79,6 +79,10 @@ class TabHelpers {
    // Link Preview shows a preview of a page, then promote it as a new tab.
    friend class PreviewTab;
  
@@ -766,7 +762,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
    // design document linked above, especially the section "Reusing tab helpers".
 --- a/chrome/browser/ui/browser_web_contents_delegate/BUILD.gn
 +++ b/chrome/browser/ui/browser_web_contents_delegate/BUILD.gn
-@@ -25,6 +25,7 @@
+@@ -24,6 +24,7 @@ if (!is_android) {
        "//chrome/browser/headless",
        "//chrome/browser/picture_in_picture",
        "//chrome/browser/preloading:prefs",
@@ -774,7 +770,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
        "//chrome/browser/search",
        "//chrome/browser/ui:browser_command_controller",
        "//chrome/browser/ui:browser_commands",
-@@ -43,6 +44,7 @@
+@@ -43,6 +44,7 @@ if (!is_android) {
        "//components/javascript_dialogs",
        "//components/page_load_metrics/browser",
        "//components/printing/browser",
@@ -800,7 +796,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
  #include "components/split_tabs/split_tab_id.h"
  #include "components/tabs/public/split_tab_data.h"
  #include "components/tabs/public/tab_interface.h"
-@@ -127,6 +129,12 @@
+@@ -127,6 +129,12 @@ DEFINE_USER_DATA(BrowserWebContentsDeleg
  
  namespace {
  
@@ -813,7 +809,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
  const extensions::Extension* GetExtensionForOrigin(
      Profile* profile,
      const GURL& security_origin) {
-@@ -548,6 +556,13 @@
+@@ -542,6 +550,13 @@ content::WebContents* BrowserWebContents
                                    std::move(navigation_handle_callback));
    }
  
@@ -827,7 +823,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
    // If the source is already split, navigate the other pane instead of
    // creating a new tab. Return |source| so that WebContentsImpl::OpenURL()
    // sees new_contents == this and skips the DidOpenRequestedURL notification,
-@@ -736,6 +751,13 @@
+@@ -730,6 +745,13 @@ content::WebContents* BrowserWebContents
      }
    }
  
@@ -843,7 +839,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
                                  window_action, user_gesture);
 --- a/chrome/browser/ui/views/frame/ranga_spotlight_view.h
 +++ b/chrome/browser/ui/views/frame/ranga_spotlight_view.h
-@@ -14,6 +14,7 @@
+@@ -14,6 +14,7 @@ class BrowserWindowInterface;
  namespace content {
  class BrowserContext;
  class NavigationEntry;
@@ -851,7 +847,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
  class WebContents;
  }  // namespace content
  
-@@ -37,6 +38,7 @@
+@@ -37,6 +38,7 @@ class RangaSpotlightView : public views:
  
    void CloseContents(content::WebContents* source) override;
    void TitleWasSet(content::NavigationEntry* entry) override;
@@ -859,7 +855,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
  
   private:
    std::string page_;
-@@ -47,6 +49,9 @@
+@@ -47,6 +49,9 @@ class RangaSpotlightView : public views:
  RangaSpotlightView* RangaOverlayFor(BrowserView* browser_view,
                                      std::string_view page);
  
@@ -882,7 +878,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
  #include "content/public/browser/web_contents.h"
  #include "third_party/skia/include/core/SkColor.h"
  #include "ui/base/metadata/metadata_impl_macros.h"
-@@ -69,29 +72,54 @@
+@@ -69,29 +72,54 @@ void RangaSpotlightView::CloseContents(c
    Hide();
  }
  
@@ -942,7 +938,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
                if (views::WebView* contents = view->GetActiveContentsWebView()) {
                  contents->RequestFocus();
                }
-@@ -134,8 +162,12 @@
+@@ -134,8 +162,12 @@ bool RangaShowFind(BrowserWindowInterfac
      return false;
    }
    BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
@@ -958,7 +954,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
    }
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -177,6 +177,7 @@
+@@ -178,6 +178,7 @@
  #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate_impl.h"
  #include "chrome/browser/ui/views/frame/main_background_region_view.h"
  #include "chrome/browser/ui/views/frame/multi_contents_view.h"
@@ -966,7 +962,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
  #include "chrome/browser/ui/views/frame/ranga_shortcuts.h"
  #include "chrome/browser/ui/views/frame/ranga_spotlight_view.h"
  #include "extensions/browser/event_router.h"
-@@ -2371,6 +2372,7 @@
+@@ -2371,6 +2372,7 @@ void BrowserView::Show() {
  
    if (RangaHidesNativeChrome(browser_)) {
      RangaOverlayFor(this, "switcher.html")->Preload();
@@ -976,7 +972,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
        if (auto* shadow = views::AsViewClass<ShadowFrameView>(child)) {
 --- a/chrome/common/extensions/api/ranga_private.idl
 +++ b/chrome/common/extensions/api/ranga_private.idl
-@@ -57,6 +57,24 @@
+@@ -57,6 +57,24 @@ namespace rangaPrivate {
      boolean isDefault;
    };
  
@@ -1001,7 +997,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
    callback ExtensionActionsCallback = void(ExtensionAction[] actions);
    callback SearchEnginesCallback = void(SearchEngine[] engines);
    callback FindCallback = void(FindResult result);
-@@ -65,6 +83,7 @@
+@@ -65,6 +83,7 @@ namespace rangaPrivate {
    callback CommandsCallback = void(DOMString[] commands);
    callback CrashedSessionCallback = void(boolean offered);
    callback RejectedCallback = void(DOMString[] rejected);
@@ -1009,7 +1005,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
    callback DoneCallback = void();
  
    interface Functions {
-@@ -160,6 +179,28 @@
+@@ -160,6 +179,28 @@ namespace rangaPrivate {
      static void clearContainer(
          DOMString container,
          optional DoneCallback callback);
@@ -1038,7 +1034,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
    };
  
    interface Events {
-@@ -168,5 +209,13 @@
+@@ -168,5 +209,13 @@ namespace rangaPrivate {
  
      // The window's sidebar mode changed (see setSidebarMode()).
      static void onSidebarModeChanged(DOMString mode, long windowId);
@@ -1054,17 +1050,17 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
  };
 --- a/chrome/browser/extensions/api/ranga_private/BUILD.gn
 +++ b/chrome/browser/extensions/api/ranga_private/BUILD.gn
-@@ -15,6 +15,7 @@
+@@ -15,6 +15,7 @@ source_set("ranga_private") {
      "//chrome/app:command_ids",
      "//chrome/browser/extensions",
      "//chrome/browser/profiles",
 +    "//chrome/browser/ranga",
-     "//chrome/browser/ui",
+     "//chrome/browser/ui:browser_commands",
      "//chrome/browser/ui:browser_window_header",
      "//chrome/browser/ui/extensions",
 --- a/chrome/browser/extensions/api/ranga_private/ranga_private_api.h
 +++ b/chrome/browser/extensions/api/ranga_private/ranga_private_api.h
-@@ -163,6 +163,51 @@
+@@ -163,6 +163,51 @@ class RangaPrivateClearContainerFunction
    int pending_ = 0;
  };
  
@@ -1150,7 +1146,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
  #include "ui/gfx/codec/png_codec.h"
  #include "ui/gfx/geometry/rect_conversions.h"
  #include "ui/gfx/geometry/rect_f.h"
-@@ -66,6 +71,7 @@
+@@ -66,6 +71,7 @@ constexpr char kNoActionError[] = "No ex
  constexpr char kNoCommandError[] = "Unknown or disabled command *.";
  constexpr char kBadUrlError[] = "Invalid url *.";
  constexpr char kNoContainerError[] = "Only a container can be cleared.";
@@ -1158,7 +1154,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
  
  struct Command {
    const char* name;
-@@ -99,6 +105,9 @@
+@@ -99,6 +105,9 @@ BrowserWindowInterface* BrowserForWindow
  }
  
  content::WebContents* ActiveContents(BrowserWindowInterface* browser) {
@@ -1168,7 +1164,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
    tabs::TabInterface* tab = TabListInterface::From(browser)->GetActiveTab();
    return tab ? tab->GetContents() : nullptr;
  }
-@@ -533,4 +542,89 @@
+@@ -533,4 +542,89 @@ void RangaPrivateClearContainerFunction:
    }
  }
  
@@ -1260,7 +1256,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
  }  // namespace extensions
 --- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
 +++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
-@@ -236,6 +236,7 @@
+@@ -242,6 +242,7 @@
  #include "content/public/browser/navigation_entry.h"
  #include "content/public/browser/page.h"
  #include "content/public/browser/picture_in_picture_window_controller.h"
@@ -1268,7 +1264,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
  #include "content/public/browser/render_frame_host.h"
  #include "content/public/browser/render_process_host.h"
  #include "content/public/browser/render_view_host.h"
-@@ -4048,6 +4049,11 @@
+@@ -4115,6 +4116,11 @@ void RenderViewContextMenu::ExecuteComma
      }
  
      case IDC_RELOAD:
@@ -1280,7 +1276,7 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
        chrome::Reload(GetBrowser(), WindowOpenDisposition::CURRENT_TAB);
        break;
  
-@@ -4400,7 +4406,8 @@
+@@ -4484,7 +4490,8 @@ bool RenderViewContextMenu::ShouldOpenTe
  bool RenderViewContextMenu::IsReloadEnabled() const {
    CoreTabHelper* core_tab_helper =
        CoreTabHelper::FromWebContents(embedder_web_contents_);
@@ -1290,3 +1286,22 @@ Peek do Ranga: links que uma Fixada abriria numa aba nova em primeiro plano (tar
  }
  
  bool RenderViewContextMenu::IsViewSourceEnabled() const {
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -769,6 +769,8 @@ source_set("browser_view_header") {
+ source_set("browser_view") {
+   sources = [
+     "browser_view.cc",
++    "ranga_peek_view.cc",
++    "ranga_peek_view.h",
+     "ranga_sidebar_mode.cc",
+     "ranga_sidebar_mode.h",
+     "ranga_shortcuts.cc",
+@@ -832,6 +834,7 @@ source_set("browser_view") {
+     "//chrome/browser/profiles:profile",
+     "//chrome/browser/profiles:profile_manager",
+     "//chrome/browser/profiles:profile_util",
++    "//chrome/browser/ranga",
+     "//chrome/browser/sessions",
+     "//chrome/browser/sharing_hub",
+     "//chrome/browser/signin",

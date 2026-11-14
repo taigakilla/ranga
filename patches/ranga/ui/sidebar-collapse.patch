@@ -192,20 +192,9 @@ Barra lateral recolhível: rangaPrivate.setSidebarMode põe a janela em "docked"
 +          extensions::events::COMMANDS_ON_COMMAND,
 +          "rangaPrivate.onSidebarModeChanged", std::move(args), profile));
 +}
---- a/chrome/browser/ui/BUILD.gn
-+++ b/chrome/browser/ui/BUILD.gn
-@@ -3555,6 +3555,8 @@
-       "views/frame/ranga_spotlight_view.h",
-       "views/frame/ranga_shortcuts.cc",
-       "views/frame/ranga_shortcuts.h",
-+      "views/frame/ranga_sidebar_mode.cc",
-+      "views/frame/ranga_sidebar_mode.h",
-       "views/frame/horizontal_tab_strip_region_view.cc",
-       "views/frame/horizontal_tab_strip_region_view.h",
-       "views/frame/vertical_tab_strip_region_view.cc",
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-@@ -39,6 +39,7 @@
+@@ -40,6 +40,7 @@
  #include "chrome/browser/ui/views/frame/layout/browser_view_layout_impl.h"
  #include "chrome/browser/ui/views/frame/layout/browser_view_layout_params.h"
  #include "chrome/browser/ui/views/frame/multi_contents_view.h"
@@ -213,7 +202,7 @@ Barra lateral recolhível: rangaPrivate.setSidebarMode põe a janela em "docked"
  #include "chrome/browser/ui/views/frame/shadow_frame_view.h"
  #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
  #include "chrome/browser/ui/views/frame/vertical_tab_strip_background_blur_backdrop.h"
-@@ -1221,8 +1222,17 @@
+@@ -1299,8 +1300,17 @@ BrowserViewTabbedLayoutImpl::CalculatePr
  
      // Not all of the width may be visible on the screen.
      const int target_width = horizontal_layout.side_panel_width;
@@ -232,7 +221,7 @@ Barra lateral recolhível: rangaPrivate.setSidebarMode põe a janela em "docked"
  
      // Add `container_inset_padding` to the top of the side panel to separate it
      // from the horizontal tab strip. SidePanel draws the top on top of the top
-@@ -1254,10 +1264,12 @@
+@@ -1332,10 +1342,12 @@ BrowserViewTabbedLayoutImpl::CalculatePr
                        side_panel_animation_content_bounds);
      }
  
@@ -249,7 +238,7 @@ Barra lateral recolhível: rangaPrivate.setSidebarMode põe a janela em "docked"
      }
    }
  
-@@ -1426,7 +1438,10 @@
+@@ -1504,7 +1516,10 @@ BrowserViewTabbedLayoutImpl::CalculatePr
            "ranga-native-chrome") &&
        !is_fullscreen(layout_data_->window_state)) {
      const bool panel_shown =
@@ -263,7 +252,7 @@ Barra lateral recolhível: rangaPrivate.setSidebarMode põe a janela em "docked"
      ranga_contents_bounds.Inset(
 --- a/chrome/browser/extensions/api/ranga_private/ranga_private_api.h
 +++ b/chrome/browser/extensions/api/ranga_private/ranga_private_api.h
-@@ -66,6 +66,15 @@
+@@ -66,6 +66,15 @@ class RangaPrivateSetShortcutsFunction :
    ResponseAction Run() override;
  };
  
@@ -289,7 +278,7 @@ Barra lateral recolhível: rangaPrivate.setSidebarMode põe a janela em "docked"
  #include "chrome/browser/ui/views/frame/ranga_spotlight_view.h"
  #include "chrome/browser/ui/tabs/tab_strip_model.h"
  #include "chrome/browser/ui/toolbar/toolbar_action_view_model.h"
-@@ -247,6 +248,25 @@
+@@ -247,6 +248,25 @@ ExtensionFunction::ResponseAction RangaP
        ranga_private::SetShortcuts::Results::Create(rejected)));
  }
  
@@ -317,7 +306,7 @@ Barra lateral recolhível: rangaPrivate.setSidebarMode põe a janela em "docked"
    EXTENSION_FUNCTION_VALIDATE(params);
 --- a/chrome/common/extensions/api/ranga_private.idl
 +++ b/chrome/common/extensions/api/ranga_private.idl
-@@ -91,6 +91,14 @@
+@@ -91,6 +91,14 @@ namespace rangaPrivate {
          object shortcuts,
          optional RejectedCallback callback);
  
@@ -332,7 +321,7 @@ Barra lateral recolhível: rangaPrivate.setSidebarMode põe a janela em "docked"
      // Answers the offer: reopens the crashed session in the window, or lets
      // it go.
      static void resolveCrashedSession(
-@@ -138,5 +146,8 @@
+@@ -138,5 +146,8 @@ namespace rangaPrivate {
    interface Events {
      // A shortcut from setShortcuts() was pressed in the window.
      static void onShortcut(DOMString command, long windowId);
@@ -341,3 +330,14 @@ Barra lateral recolhível: rangaPrivate.setSidebarMode põe a janela em "docked"
 +    static void onSidebarModeChanged(DOMString mode, long windowId);
    };
  };
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -769,6 +769,8 @@ source_set("browser_view_header") {
+ source_set("browser_view") {
+   sources = [
+     "browser_view.cc",
++    "ranga_sidebar_mode.cc",
++    "ranga_sidebar_mode.h",
+     "ranga_shortcuts.cc",
+     "ranga_shortcuts.h",
+     "ranga_spotlight_view.cc",

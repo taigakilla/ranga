@@ -20,7 +20,7 @@ def sections(text):
             new = lines[i + 1][4:].split("\t")[0].strip()
             old = line[4:].split("\t")[0].strip()
             path = new if new != "/dev/null" else old
-            current = re.sub(r"^[ab]/", "", path)
+            current = re.sub(r"^(?:[ab]|src|src\.orig)/", "", path)
             result[current] = line + lines[i + 1]
             i += 2
             continue

@@ -255,20 +255,9 @@ Atalhos do Ranga configur√°veis: rangaPrivate.setShortcuts recebe o mapa tecla ‚
 +  }
 +  target->Register();
 +}
---- a/chrome/browser/ui/BUILD.gn
-+++ b/chrome/browser/ui/BUILD.gn
-@@ -3553,6 +3553,8 @@
-       "views/frame/browser_view.cc",
-       "views/frame/ranga_spotlight_view.cc",
-       "views/frame/ranga_spotlight_view.h",
-+      "views/frame/ranga_shortcuts.cc",
-+      "views/frame/ranga_shortcuts.h",
-       "views/frame/horizontal_tab_strip_region_view.cc",
-       "views/frame/horizontal_tab_strip_region_view.h",
-       "views/frame/vertical_tab_strip_region_view.cc",
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -177,6 +177,7 @@
+@@ -178,6 +178,7 @@
  #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate_impl.h"
  #include "chrome/browser/ui/views/frame/main_background_region_view.h"
  #include "chrome/browser/ui/views/frame/multi_contents_view.h"
@@ -276,7 +265,7 @@ Atalhos do Ranga configur√°veis: rangaPrivate.setShortcuts recebe o mapa tecla ‚
  #include "chrome/browser/ui/views/frame/ranga_spotlight_view.h"
  #include "extensions/browser/event_router.h"
  #include "extensions/browser/extension_event_histogram_value.h"
-@@ -2370,6 +2371,7 @@
+@@ -2370,6 +2371,7 @@ void BrowserView::Show() {
  
    if (RangaHidesNativeChrome(browser_)) {
      RangaOverlayFor(this, "switcher.html")->Preload();
@@ -284,7 +273,7 @@ Atalhos do Ranga configur√°veis: rangaPrivate.setShortcuts recebe o mapa tecla ‚
      for (views::View* child : children()) {
        if (auto* shadow = views::AsViewClass<ShadowFrameView>(child)) {
          shadow->SetShadowCornerRadius(12);
-@@ -4000,6 +4002,13 @@
+@@ -3997,6 +3999,13 @@ content::KeyboardEventProcessingResult B
      return result;
    }
  
@@ -300,7 +289,7 @@ Atalhos do Ranga configur√°veis: rangaPrivate.setShortcuts recebe o mapa tecla ‚
      // |accelerator| is not a browser command, it may be handled by ash (e.g.
 --- a/chrome/browser/extensions/api/ranga_private/ranga_private_api.h
 +++ b/chrome/browser/extensions/api/ranga_private/ranga_private_api.h
-@@ -57,6 +57,15 @@
+@@ -57,6 +57,15 @@ class RangaPrivateResolveCrashedSessionF
    ResponseAction Run() override;
  };
  
@@ -335,7 +324,7 @@ Atalhos do Ranga configur√°veis: rangaPrivate.setShortcuts recebe o mapa tecla ‚
  #include "chrome/browser/ui/tabs/tab_strip_model.h"
  #include "chrome/browser/ui/toolbar/toolbar_action_view_model.h"
  #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
-@@ -224,6 +227,26 @@
+@@ -224,6 +227,26 @@ RangaPrivateResolveCrashedSessionFunctio
    return RespondNow(NoArguments());
  }
  
@@ -362,7 +351,7 @@ Atalhos do Ranga configur√°veis: rangaPrivate.setShortcuts recebe o mapa tecla ‚
  ExtensionFunction::ResponseAction RangaPrivateExecuteCommandFunction::Run() {
    auto params = ranga_private::ExecuteCommand::Params::Create(args());
    EXTENSION_FUNCTION_VALIDATE(params);
-@@ -234,6 +257,10 @@
+@@ -234,6 +257,10 @@ ExtensionFunction::ResponseAction RangaP
    if (!browser) {
      return RespondNow(Error(std::move(error)));
    }
@@ -375,7 +364,7 @@ Atalhos do Ranga configur√°veis: rangaPrivate.setShortcuts recebe o mapa tecla ‚
          chrome::ExecuteCommand(browser, command.id)) {
 --- a/chrome/common/extensions/api/ranga_private.idl
 +++ b/chrome/common/extensions/api/ranga_private.idl
-@@ -53,6 +53,7 @@
+@@ -53,6 +53,7 @@ namespace rangaPrivate {
    callback TabContainersCallback = void(TabContainer[] tabs);
    callback CommandsCallback = void(DOMString[] commands);
    callback CrashedSessionCallback = void(boolean offered);
@@ -383,7 +372,7 @@ Atalhos do Ranga configur√°veis: rangaPrivate.setShortcuts recebe o mapa tecla ‚
    callback DoneCallback = void();
  
    interface Functions {
-@@ -81,6 +82,15 @@
+@@ -81,6 +82,15 @@ namespace rangaPrivate {
          long windowId,
          CrashedSessionCallback callback);
  
@@ -399,7 +388,7 @@ Atalhos do Ranga configur√°veis: rangaPrivate.setShortcuts recebe o mapa tecla ‚
      // Answers the offer: reopens the crashed session in the window, or lets
      // it go.
      static void resolveCrashedSession(
-@@ -88,9 +98,9 @@
+@@ -88,9 +98,9 @@ namespace rangaPrivate {
          boolean restore,
          optional DoneCallback callback);
  
@@ -412,7 +401,7 @@ Atalhos do Ranga configur√°veis: rangaPrivate.setShortcuts recebe o mapa tecla ‚
      static void executeCommand(
          long windowId,
          DOMString command,
-@@ -124,4 +134,9 @@
+@@ -124,4 +134,9 @@ namespace rangaPrivate {
          DOMString container,
          optional DoneCallback callback);
    };
@@ -422,3 +411,14 @@ Atalhos do Ranga configur√°veis: rangaPrivate.setShortcuts recebe o mapa tecla ‚
 +    static void onShortcut(DOMString command, long windowId);
 +  };
  };
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -769,6 +769,8 @@ source_set("browser_view_header") {
+ source_set("browser_view") {
+   sources = [
+     "browser_view.cc",
++    "ranga_shortcuts.cc",
++    "ranga_shortcuts.h",
+     "ranga_spotlight_view.cc",
+     "ranga_spotlight_view.h",
+   ]

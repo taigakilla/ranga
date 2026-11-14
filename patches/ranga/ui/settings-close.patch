@@ -10,7 +10,7 @@ chrome://settings ganha um bot√£o de fechar no topo e fecha com Esc (fora de di√
  #include "base/values.h"
  #include "build/branding_buildflags.h"
  #include "build/build_config.h"
-@@ -47,11 +48,14 @@
+@@ -48,11 +49,14 @@
  #include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
  #include "chrome/browser/sync/sync_service_factory.h"
  #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -24,9 +24,9 @@ chrome://settings ganha um bot√£o de fechar no topo e fecha com Esc (fora de di√
 +#include "chrome/browser/ui/tabs/tab_strip_model.h"
  #include "chrome/browser/ui/toasts/toast_features.h"
  #include "chrome/browser/ui/ui_features.h"
- #include "chrome/browser/ui/webui/cr_components/customize_color_scheme_mode/customize_color_scheme_mode_handler.h"
-@@ -147,7 +151,11 @@
- #include "components/universal_optout/prefs.h"
+ #include "chrome/browser/ui/webui/batch_upload_promo/batch_upload_promo_handler.h"
+@@ -154,7 +158,11 @@
+ #include "components/universal_optout/universal_optout_service.h"
  #include "content/public/browser/isolated_web_apps_policy.h"
  #include "content/public/browser/url_data_source.h"
 +#include "components/tabs/public/tab_interface.h"
@@ -37,7 +37,7 @@ chrome://settings ganha um bot√£o de fechar no topo e fecha com Esc (fora de di√
  #include "content/public/browser/web_ui.h"
  #include "content/public/browser/web_ui_data_source.h"
  #include "content/public/common/content_features.h"
-@@ -225,6 +233,42 @@
+@@ -231,6 +239,42 @@ namespace settings {
  
  using optimization_guide::UserVisibleFeatureKey;
  
@@ -80,7 +80,7 @@ chrome://settings ganha um bot√£o de fechar no topo e fecha com Esc (fora de di√
  // static
  void SettingsUI::RegisterProfilePrefs(
      user_prefs::PrefRegistrySyncable* registry) {
-@@ -248,6 +292,15 @@
+@@ -255,6 +299,15 @@ SettingsUI::SettingsUI(content::WebUI* w
        "worker-src blob: chrome://resources 'self';");
  
    AddSettingsPageUIHandler(std::make_unique<AppearanceHandler>(web_ui));
@@ -98,51 +98,48 @@ chrome://settings ganha um bot√£o de fechar no topo e fecha com Esc (fora de di√
    AddSettingsPageUIHandler(std::make_unique<LanguagesHandler>(profile));
 --- a/chrome/browser/resources/settings/settings_ui/settings_ui.html
 +++ b/chrome/browser/resources/settings/settings_ui/settings_ui.html
-@@ -103,6 +103,10 @@
-         narrow="{{narrow_}}"
+@@ -12,6 +12,10 @@
+         @narrow-changed="${this.onToolbarNarrowChanged_}"
          narrow-threshold="980"
-         show-menu="[[getLeftMenuHidden_(narrow_, isSettingsRefresh2026_)]]">
+         ?show-menu="${this.getLeftMenuHidden_()}">
 +      <cr-icon-button id="rangaClose" iron-icon="cr:close"
 +          title="$i18n{close}" aria-label="$i18n{close}"
-+          hidden="[[!rangaMode_]]" on-click="onRangaCloseClick_">
++          ?hidden="${!this.rangaMode_}" @click="${this.onRangaCloseClick_}">
 +      </cr-icon-button>
      </cr-toolbar>
-     <cr-drawer id="drawer" on-close="onMenuClose_" heading="$i18n{settings}"
+     <cr-drawer id="drawer" @close="${this.onMenuClose_}" heading="$i18n{settings}"
          align="$i18n{textdirection}">
 --- a/chrome/browser/resources/settings/settings_ui/settings_ui.ts
 +++ b/chrome/browser/resources/settings/settings_ui/settings_ui.ts
 @@ -11,6 +11,7 @@
-  *    <settings-ui prefs="{{prefs}}"></settings-ui>
+  *    <settings-ui></settings-ui>
   */
  import 'chrome://resources/cr_elements/cr_drawer/cr_drawer.js';
 +import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
+ import 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render_lit.js';
  import 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar.js';
  import 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar_search_field.js';
- import 'chrome://resources/cr_elements/cr_page_host_style.css.js';
-@@ -106,6 +107,11 @@
-         type: Boolean,
-         value: () => loadTimeData.getString('settingsRefresh2026') !== '',
-       },
-+
-+      rangaMode_: {
-+        type: Boolean,
-+        value: () => loadTimeData.getBoolean('rangaMode'),
-+      },
+@@ -79,6 +80,7 @@ export class SettingsUiElement extends S
+       narrow_: {type: Boolean},
+       lastSearchQuery_: {type: String},
+       isSettingsRefresh2026_: {type: Boolean},
++      rangaMode_: {type: Boolean},
      };
    }
  
-@@ -114,6 +120,7 @@
-   declare private narrow_: boolean;
-   declare private lastSearchQuery_: string;
-   declare private isSettingsRefresh2026_: boolean;
-+  declare private rangaMode_: boolean;
+@@ -87,6 +89,8 @@ export class SettingsUiElement extends S
+   private accessor lastSearchQuery_: string = '';
+   private accessor isSettingsRefresh2026_: boolean =
+       loadTimeData.getString('settingsRefresh2026') !== '';
++  protected accessor rangaMode_: boolean =
++      loadTimeData.getBoolean('rangaMode');
  
    private activeTimer_: ActiveTimer|null = null;
  
-@@ -165,6 +172,20 @@
-     };
+@@ -97,6 +101,20 @@ export class SettingsUiElement extends S
+     super();
  
-     this.addEventListener('refresh-pref', this.onRefreshPref_.bind(this));
+     Router.getInstance().initializeRouteFromUrl();
 +
 +    document.addEventListener('keydown', (e: KeyboardEvent) => {
 +      if (e.key !== 'Escape' || e.defaultPrevented || !this.rangaMode_ ||
@@ -155,7 +152,7 @@ chrome://settings ganha um bot√£o de fechar no topo e fecha com Esc (fora de di√
 +    });
 +  }
 +
-+  private onRangaCloseClick_() {
++  protected onRangaCloseClick_() {
 +    chrome.send('rangaCloseSettings');
    }
  

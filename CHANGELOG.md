@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.0 — 14/11/2026
+- **Chromium 157**: o Ranga passa pro Helium 0.21.3 sobre o Chromium 157.0.8103.78 (o Chrome estável de 11/11), com as correções de segurança dele. Antes estava no Helium 0.20.1 / Chromium 156.
+- **Do Helium 0.21**: "Copiar link do download" no menu dos downloads, ruído contra fingerprinting em todos os contextos de execução da página, notificações push dos sites (compatível com o autopush), mais opções de sugestões na busca, uBlock Origin 1.75.4 e a tradução de páginas começando pelo que está na tela.
+- **Configurações**: o botão de fechar e o Esc voltaram a funcionar na página de Configurações, que o Chromium reescreveu no 157.
+
 ## 0.5.7 — 13/11/2026
 - **Avisos num cartão no pé da página**: "Link copiado" (Ctrl+Shift+C e os outros jeitos de copiar link), imagem copiada, dados apagados e os avisos da barra lateral (abas fechadas e arquivadas com Desfazer, aba recebida, download concluído) aparecem num cartão no centro, embaixo da página, no estilo do cartão de download. Antes eram uma pílula pequena no topo ou ficavam no pé da barra, escondidos com ela recolhida.
 - **Downloads nos apps em cartão**: um download começado num PWA mostra um cartão no canto da janela do app, com o nome, o progresso, Abrir e Mostrar na pasta. A bolha do Chromium não abre mais sozinha quando o download termina.

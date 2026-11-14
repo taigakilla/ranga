@@ -10,7 +10,7 @@ Em chrome://settings/appearance, sem a interface nativa (fora do --ranga-native-
  #include "base/feature_list.h"
  #include "base/memory/ptr_util.h"
  #include "base/strings/strcat.h"
-@@ -355,6 +356,9 @@
+@@ -367,6 +368,9 @@ SettingsUI::SettingsUI(content::WebUI* w
            profile);
    html_source->AddBoolean("isEeaChoiceCountry",
                            regional_capabilties->IsInEeaCountry());
@@ -22,7 +22,7 @@ Em chrome://settings/appearance, sem a interface nativa (fora do --ranga-native-
    html_source->AddBoolean(
 --- a/chrome/browser/resources/settings/appearance_page/appearance_page_index.ts
 +++ b/chrome/browser/resources/settings/appearance_page/appearance_page_index.ts
-@@ -10,6 +10,7 @@
+@@ -10,6 +10,7 @@ import './appearance_page.js';
  import type {CrViewManagerElement} from 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
  import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
  
@@ -30,7 +30,7 @@ Em chrome://settings/appearance, sem a interface nativa (fora do --ranga-native-
  import {routes} from '../route.js';
  import type {Route, SettingsRoutes} from '../router.js';
  import {RouteObserverMixinLit} from '../router.js';
-@@ -48,10 +49,15 @@
+@@ -48,10 +49,15 @@ export class SettingsAppearancePageIndex
        routes_: {
          type: Object,
        },
@@ -48,7 +48,7 @@ Em chrome://settings/appearance, sem a interface nativa (fora do --ranga-native-
      const views = this.$.viewManager.querySelectorAll(
 --- a/chrome/browser/resources/settings/appearance_page/appearance_page_index.html.ts
 +++ b/chrome/browser/resources/settings/appearance_page/appearance_page_index.html.ts
-@@ -11,8 +11,10 @@
+@@ -11,8 +11,10 @@ export function getHtml(this: SettingsAp
    return html`<!--_html_template_start_-->
  <cr-view-manager id="viewManager" class="cr-centered-card-container"
      ?show-all="${this.shouldShowAll}">
@@ -63,7 +63,7 @@ Em chrome://settings/appearance, sem a interface nativa (fora do --ranga-native-
    </settings-appearance-page>
 --- a/chrome/browser/resources/settings/appearance_page/appearance_page.ts
 +++ b/chrome/browser/resources/settings/appearance_page/appearance_page.ts
-@@ -129,6 +129,7 @@
+@@ -135,6 +135,7 @@ export class SettingsAppearancePageEleme
    static override get properties() {
      return {
        pageVisibility_: {type: Object},
@@ -71,7 +71,7 @@ Em chrome://settings/appearance, sem a interface nativa (fora do --ranga-native-
        defaultZoom_: {type: Number},
  
        defaultFontSizePref_: {type: Object},
-@@ -183,8 +184,14 @@
+@@ -188,8 +189,14 @@ export class SettingsAppearancePageEleme
    /**
     * Dictionary defining page visibility.
     */
@@ -90,16 +90,16 @@ Em chrome://settings/appearance, sem a interface nativa (fora do --ranga-native-
    // Mirrored prefs.
 --- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
 +++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
-@@ -49,7 +49,7 @@
+@@ -49,7 +49,7 @@ export function getHtml(this: SettingsAp
        </div>
  </if>
      </div>
 -    <div id="toolbarRow" class="settings-row">
 +    <div id="toolbarRow" class="settings-row" ?hidden="${this.rangaMode_}">
-       <cr-link-row id="customizeToolbar"
-           label="$i18n{customizeToolbar}"
+       <cr-link-row id="customizeToolbar" label="$i18n{customizeToolbar}"
            @click="${this.onCustomizeToolbarClick_}" external>
-@@ -151,7 +151,7 @@
+       </cr-link-row>
+@@ -151,7 +151,7 @@ export function getHtml(this: SettingsAp
      <settings-toggle-button class="hr" id="showSavedTabGroups"
          pref-key="bookmark_bar.show_tab_groups"
          label="$i18n{showTabGroupsInBookmarksBar}"

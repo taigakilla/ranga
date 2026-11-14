@@ -1,19 +1,8 @@
 Cobrinha de carregamento: um traço brilhante na cor do tema corre pela borda arredondada do cartão da página enquanto a aba ativa carrega, cresce com o progresso e fecha a volta quando termina (RangaLoadSnake). Segue a pref helium.browser.show_progress_bar.
 
---- a/chrome/browser/ui/BUILD.gn
-+++ b/chrome/browser/ui/BUILD.gn
-@@ -3552,6 +3552,8 @@
-       "views/frame/base_tab_strip_region_view.cc",
-       "views/frame/base_tab_strip_region_view.h",
-       "views/frame/browser_view.cc",
-+      "views/frame/ranga_load_snake.cc",
-+      "views/frame/ranga_load_snake.h",
-       "views/frame/ranga_peek_view.cc",
-       "views/frame/ranga_peek_view.h",
-       "views/frame/ranga_spotlight_view.cc",
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -180,6 +180,7 @@
+@@ -181,6 +181,7 @@
  #include "chrome/browser/ui/views/frame/multi_contents_view.h"
  #include "chrome/browser/ui/views/frame/ranga_peek_view.h"
  #include "chrome/browser/ui/views/frame/ranga_shortcuts.h"
@@ -21,7 +10,7 @@ Cobrinha de carregamento: um traço brilhante na cor do tema corre pela borda ar
  #include "chrome/browser/ui/views/frame/ranga_spotlight_view.h"
  #include "extensions/browser/event_router.h"
  #include "extensions/browser/extension_event_histogram_value.h"
-@@ -1086,6 +1087,8 @@
+@@ -1086,6 +1087,8 @@ BrowserView::BrowserView(BrowserWindowIn
                                                         .dark_key = 0.20,
                                                         .dark_ambient = 0.40}),
                     GetIndexOf(multi_contents_view_).value());
@@ -30,7 +19,7 @@ Cobrinha de carregamento: um traço brilhante na cor do tema corre pela borda ar
    }
  
    set_contents_view(multi_contents_view_);
-@@ -1506,6 +1509,15 @@
+@@ -1506,6 +1509,15 @@ bool RangaHidesNativeChrome(const Browse
           browser->GetType() == BrowserWindowInterface::Type::TYPE_NORMAL;
  }
  
@@ -46,7 +35,7 @@ Cobrinha de carregamento: um traço brilhante na cor do tema corre pela borda ar
  void ShowRangaSpotlight(BrowserView* browser_view, bool new_tab) {
    RangaShowSpotlight(browser_view->browser(), new_tab ? "new" : "current");
  }
-@@ -2713,6 +2725,9 @@
+@@ -2713,6 +2725,9 @@ void BrowserView::OnActiveTabChanged(con
    }
  
    WebContentsObserver::Observe(new_contents);
@@ -56,7 +45,7 @@ Cobrinha de carregamento: um traço brilhante na cor do tema corre pela borda ar
  
    // If |contents_web_view| already has the correct WebContents, we can save
    // some work.  This also prevents extra events from being reported by the
-@@ -5691,6 +5706,9 @@
+@@ -5688,6 +5703,9 @@ void BrowserView::Layout(PassKey) {
    }
  
    LayoutSuperclass<views::View>(this);
@@ -374,3 +363,14 @@ Cobrinha de carregamento: um traço brilhante na cor do tema corre pela borda ar
 +
 +BEGIN_METADATA(RangaLoadSnake)
 +END_METADATA
+--- a/chrome/browser/ui/views/frame/BUILD.gn
++++ b/chrome/browser/ui/views/frame/BUILD.gn
+@@ -769,6 +769,8 @@ source_set("browser_view_header") {
+ source_set("browser_view") {
+   sources = [
+     "browser_view.cc",
++    "ranga_load_snake.cc",
++    "ranga_load_snake.h",
+     "ranga_peek_view.cc",
+     "ranga_peek_view.h",
+     "ranga_sidebar_mode.cc",

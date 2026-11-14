@@ -1,6 +1,6 @@
 --- a/chrome/browser/ui/browser_command_controller.cc
 +++ b/chrome/browser/ui/browser_command_controller.cc
-@@ -759,10 +759,11 @@
+@@ -771,10 +771,11 @@ void BrowserCommandController::HandleCom
        break;
      // Window management commands
      case IDC_NEW_WINDOW:
@@ -16,7 +16,7 @@
        NewIncognitoWindow(profile());
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -1519,6 +1519,12 @@
+@@ -1519,6 +1519,12 @@ RangaLoadSnake* RangaProgressView(Browse
    return nullptr;
  }
  
@@ -29,17 +29,16 @@
  void ShowRangaSpotlight(BrowserView* browser_view, bool new_tab) {
    RangaShowSpotlight(browser_view->browser(), new_tab ? "new" : "current");
  }
-@@ -2750,7 +2756,8 @@
+@@ -2754,7 +2760,7 @@ void BrowserView::OnActiveTabChanged(con
+     will_restore_focus &= GetWidget()->IsActive();
+   }
  #else
-   bool will_restore_focus =
-       !browser_->GetTabStripModel()->closing_all() && GetWidget()->IsActive() &&
--      GetWidget()->IsVisible() && !tab_change_in_split_view;
-+      GetWidget()->IsVisible() && !tab_change_in_split_view &&
-+      !RangaSpotlightOpen(this);
+-  will_restore_focus &= GetWidget()->IsActive();
++  will_restore_focus &= GetWidget()->IsActive() && !RangaSpotlightOpen(this);
  #endif
    // Update various elements that are interested in knowing the current
    // WebContents.
-@@ -4964,7 +4971,9 @@
+@@ -4961,7 +4967,9 @@ void BrowserView::OnWidgetActivationChan
  
          // Set initial focus change on the first activation if there is no
          // modal dialog.
@@ -77,7 +76,7 @@
  #include "content/public/browser/web_contents.h"
  #include "third_party/skia/include/core/SkColor.h"
  #include "ui/base/base_window.h"
-@@ -31,6 +35,7 @@
+@@ -31,6 +35,7 @@ RangaSpotlightView::RangaSpotlightView(c
                                         base::RepeatingClosure on_hidden)
      : views::WebView(browser_context),
        page_(std::move(page)),
@@ -85,7 +84,7 @@
        on_hidden_(std::move(on_hidden)) {
    SetVisible(false);
  }
-@@ -59,7 +64,29 @@
+@@ -59,7 +64,29 @@ void RangaSpotlightView::Show(std::strin
    }
  }
  
@@ -115,7 +114,7 @@
    content::WebContents* contents = GetWebContents();
    if (!contents->GetController().IsInitialNavigation()) {
      return;
-@@ -71,6 +98,21 @@
+@@ -71,6 +98,21 @@ void RangaSpotlightView::Preload() {
        content::Referrer(), ui::PAGE_TRANSITION_AUTO_TOPLEVEL, std::string());
  }
  
@@ -137,7 +136,7 @@
  void RangaSpotlightView::Hide() {
    if (!GetVisible()) {
      return;
-@@ -178,6 +220,27 @@
+@@ -178,6 +220,27 @@ bool RangaShowSpotlight(BrowserWindowInt
    return true;
  }
  
@@ -165,7 +164,7 @@
  void RangaShowNavigationHint(BrowserWindowInterface* browser, bool back) {
    if (base::CommandLine::ForCurrentProcess()->HasSwitch(
            "ranga-native-chrome") ||
-@@ -270,6 +333,11 @@
+@@ -270,6 +333,11 @@ void RangaLayoutPanes(BrowserView* brows
    if (!RangaOwnsWindow(browser_view)) {
      return;
    }
@@ -193,7 +192,7 @@
  #include "ui/base/metadata/metadata_header_macros.h"
  #include "ui/views/controls/webview/webview.h"
  
-@@ -37,6 +40,7 @@
+@@ -37,6 +40,7 @@ class RangaSpotlightView : public views:
    void Show(std::string_view mode, const gfx::Rect& bounds, bool focus = true);
    void Preload();
    void Hide();
@@ -201,7 +200,7 @@
  
    void CloseContents(content::WebContents* source) override;
    void TitleWasSet(content::NavigationEntry* entry) override;
-@@ -44,8 +48,12 @@
+@@ -44,8 +48,12 @@ class RangaSpotlightView : public views:
  
   private:
    std::string page_;
@@ -214,7 +213,7 @@
    int generation_ = 0;
  };
  
-@@ -59,6 +67,9 @@
+@@ -59,6 +67,9 @@ gfx::Rect RangaContentsArea(BrowserView*
  
  bool RangaShowSpotlight(BrowserWindowInterface* browser, std::string_view mode);
  

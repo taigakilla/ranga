@@ -2,7 +2,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
 
 --- a/chrome/browser/ranga/BUILD.gn
 +++ b/chrome/browser/ranga/BUILD.gn
-@@ -12,6 +12,9 @@
+@@ -12,6 +12,9 @@ source_set("ranga") {
  
    deps = [
      "//base",
@@ -22,7 +22,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  
  namespace content {
  struct OpenURLParams;
-@@ -38,4 +39,20 @@
+@@ -38,4 +39,20 @@ content::WebContents* RangaOpenPeek(
      const content::OpenURLParams* params,
      std::unique_ptr<content::WebContents>* contents);
  
@@ -56,7 +56,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  #include "content/public/browser/page_navigator.h"
  #include "content/public/browser/web_contents.h"
  
-@@ -17,6 +21,13 @@
+@@ -17,6 +21,13 @@ base::flat_set<int>& PeekTabs() {
    return *tabs;
  }
  
@@ -70,7 +70,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  RangaPeekOpener& PeekOpener() {
    static base::NoDestructor<RangaPeekOpener> opener;
    return *opener;
-@@ -44,3 +55,41 @@
+@@ -44,3 +55,41 @@ content::WebContents* RangaOpenPeek(
    return PeekOpener() ? PeekOpener().Run(browser, source, params, contents)
                        : nullptr;
  }
@@ -114,7 +114,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
 +}
 --- a/chrome/browser/ui/startup/BUILD.gn
 +++ b/chrome/browser/ui/startup/BUILD.gn
-@@ -218,6 +218,7 @@
+@@ -218,6 +218,7 @@ source_set("impl") {
      deps += [
        ":startup_tab",
        "//apps",
@@ -139,7 +139,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  #include "base/command_line.h"
  #include "base/debug/dump_without_crashing.h"
  #include "base/feature_list.h"
-@@ -57,11 +59,14 @@
+@@ -58,11 +60,14 @@
  #include "chrome/browser/profiles/profile_observer.h"
  #include "chrome/browser/profiles/profile_window.h"
  #include "chrome/browser/profiles/profiles_state.h"
@@ -154,7 +154,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
  #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
  #include "chrome/browser/ui/extensions/application_launch.h"
-@@ -97,6 +102,8 @@
+@@ -98,6 +103,8 @@
  #include "extensions/browser/extension_registry.h"
  #include "extensions/common/switches.h"
  #include "printing/buildflags/buildflags.h"
@@ -163,7 +163,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  
  #if BUILDFLAG(IS_CHROMEOS)
  #include "ash/constants/ash_switches.h"
-@@ -151,6 +158,10 @@
+@@ -152,6 +159,10 @@
  #include "chrome/browser/ui/startup/focus/focus_handler.h"
  #endif
  
@@ -174,7 +174,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  using content::BrowserThread;
  using content::ChildProcessSecurityPolicy;
  
-@@ -659,6 +670,78 @@
+@@ -689,6 +700,78 @@ std::optional<bool> MaybeHandleValidateC
    return false;
  }
  
@@ -253,7 +253,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  }  // namespace
  
  StartupBrowserCreator::StartupBrowserCreator() = default;
-@@ -1540,6 +1623,11 @@
+@@ -1573,6 +1656,11 @@ void StartupBrowserCreator::ProcessComma
    }
  #endif  // BUILDFLAG(IS_CHROMEOS)
  
@@ -267,7 +267,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
        command_line, cur_dir, chrome::startup::IsProcessStartup::kNo,
 --- a/chrome/browser/ui/views/frame/BUILD.gn
 +++ b/chrome/browser/ui/views/frame/BUILD.gn
-@@ -1998,6 +1998,7 @@
+@@ -2688,6 +2688,7 @@ if (is_linux) {
        "//base",
        "//chrome/browser:shell_integration_linux",
        "//chrome/browser/profiles:profile",
@@ -275,8 +275,8 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
        "//chrome/browser/ui:browser_init_state",
        "//chrome/browser/ui/browser_window",
        "//chrome/common:constants",
-@@ -2453,6 +2454,7 @@
-     ":vertical_tab_strip_background_blur_backdrop",
+@@ -3148,6 +3149,7 @@ source_set("browser_view_tabbed_layout_i
+     ":vertical_tab_strip_region_view",
      "//base",
      "//build:buildflag_header_h",
 +    "//chrome/browser/ranga",
@@ -293,7 +293,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  #include "chrome/browser/shell_integration_linux.h"
  #include "chrome/browser/ui/browser_init_state.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-@@ -73,6 +74,10 @@
+@@ -73,6 +74,10 @@ views::Widget::InitParams BrowserNativeW
    } else {
      params.wayland_app_id = params.wm_class_class;
    }
@@ -306,7 +306,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  }
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -182,6 +182,7 @@
+@@ -215,6 +215,7 @@ if (!is_android) {
      ]
      deps = [
        "//chrome/browser:defaults",
@@ -324,7 +324,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  #include "chrome/browser/sessions/session_service_base.h"
  #include "chrome/browser/sessions/session_service_lookup.h"
  #include "chrome/browser/ui/browser_init_state.h"
-@@ -104,6 +105,9 @@
+@@ -104,6 +105,9 @@ const base::DictValue* GetWindowPlacemen
  }
  
  bool ShouldSaveWindowPlacement(const BrowserWindowInterface* browser) {
@@ -336,7 +336,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
    // SessionServiceBase::ShouldTrackBrowser().
 --- a/chrome/browser/ui/extensions/BUILD.gn
 +++ b/chrome/browser/ui/extensions/BUILD.gn
-@@ -264,6 +264,7 @@
+@@ -272,6 +272,7 @@ source_set("impl") {
        "extension_side_panel_coordinator_views.cc",
      ]
      deps += [
@@ -354,7 +354,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  #include "chrome/browser/ui/browser_actions.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-@@ -102,7 +103,7 @@
+@@ -102,7 +103,7 @@ class ExtensionSidePanelCoordinatorViews
  
    void ShowRangaSidebar() {
      BrowserWindowInterface* browser = coordinator_->GetBrowser();
@@ -372,8 +372,8 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
 +#include "chrome/browser/ranga/ranga_links.h"
  #include "chrome/browser/ui/animation/browser_animation_controller.h"
  #include "chrome/browser/ui/animation/browser_animation_types.h"
- #include "chrome/browser/ui/browser.h"
-@@ -40,6 +41,7 @@
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+@@ -41,6 +42,7 @@
  #include "chrome/browser/ui/views/frame/layout/browser_view_layout_params.h"
  #include "chrome/browser/ui/views/frame/multi_contents_view.h"
  #include "chrome/browser/ui/views/frame/ranga_sidebar_mode.h"
@@ -381,7 +381,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  #include "chrome/browser/ui/views/frame/shadow_frame_view.h"
  #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
  #include "chrome/browser/ui/views/frame/vertical_tab_strip_background_blur_backdrop.h"
-@@ -1172,6 +1174,10 @@
+@@ -1250,6 +1252,10 @@ BrowserViewTabbedLayoutImpl::CalculatePr
                      show_dynamic_tab_strip && tabstrip_bounds.height() > 0);
    }
  
@@ -392,7 +392,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
    // Lay out the main area background.
    ProposedLayout* main_background_layout = nullptr;
    if (IsParentedTo(views().main_background_region, views().browser_view)) {
-@@ -1187,7 +1193,8 @@
+@@ -1265,7 +1271,8 @@ BrowserViewTabbedLayoutImpl::CalculatePr
      } else {
        main_background_bounds = params.visual_client_area;
      }
@@ -402,7 +402,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
      main_background_layout =
          &layout.AddChild(views().main_background_region, main_background_bounds,
                           main_background_visibility);
-@@ -1444,9 +1451,9 @@
+@@ -1522,9 +1529,9 @@ BrowserViewTabbedLayoutImpl::CalculatePr
                  ->browser()) == RangaSidebarMode::kDocked;
      const bool panel_right =
          panel_shown && views().side_panel->IsRightAligned();
@@ -415,7 +415,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
    }
    auto& contents_layout =
        layout.AddChild(views().multi_contents_view, ranga_contents_bounds);
-@@ -1456,6 +1463,16 @@
+@@ -1534,6 +1541,16 @@ BrowserViewTabbedLayoutImpl::CalculatePr
                        !is_fullscreen(layout_data_->window_state));
      }
    }
@@ -434,7 +434,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
    if (features::UseSidePanelFlyoverAnimation()) {
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
-@@ -62,6 +62,7 @@
+@@ -63,6 +63,7 @@
  #include "chrome/browser/profiles/profile_manager.h"
  #include "chrome/browser/profiles/profile_window.h"
  #include "chrome/browser/profiles/profiles_state.h"
@@ -442,7 +442,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  #include "chrome/browser/sessions/tab_restore_service_factory.h"
  #include "chrome/browser/sharing_hub/sharing_hub_features.h"
  #include "chrome/browser/signin/chrome_signin_helper.h"
-@@ -1506,8 +1507,7 @@
+@@ -1506,8 +1507,7 @@ bool RangaHidesNativeChrome(const Browse
  }
  
  void ShowRangaSpotlight(BrowserView* browser_view, bool new_tab) {
@@ -452,7 +452,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  }
  
  void DispatchRangaCommand(BrowserView* browser_view, std::string_view command) {
-@@ -2371,8 +2371,15 @@
+@@ -2371,8 +2371,15 @@ void BrowserView::Show() {
    OnWindowDidShow();
  
    if (RangaHidesNativeChrome(browser_)) {
@@ -472,7 +472,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
        if (auto* shadow = views::AsViewClass<ShadowFrameView>(child)) {
 --- a/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc
 +++ b/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc
-@@ -135,6 +135,18 @@
+@@ -135,6 +135,18 @@ bool RangaOpensInPeek(content::WebConten
           RangaIsPeekTab(sessions::SessionTabHelper::IdForTab(source).id());
  }
  
@@ -491,7 +491,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  const extensions::Extension* GetExtensionForOrigin(
      Profile* profile,
      const GURL& security_origin) {
-@@ -563,6 +575,14 @@
+@@ -557,6 +569,14 @@ content::WebContents* BrowserWebContents
      }
    }
  
@@ -506,7 +506,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
    // If the source is already split, navigate the other pane instead of
    // creating a new tab. Return |source| so that WebContentsImpl::OpenURL()
    // sees new_contents == this and skips the DidOpenRequestedURL notification,
-@@ -758,6 +778,16 @@
+@@ -752,6 +772,16 @@ content::WebContents* BrowserWebContents
      }
    }
  
@@ -525,7 +525,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
                                  window_action, user_gesture);
 --- a/chrome/browser/ui/views/frame/ranga_peek_view.cc
 +++ b/chrome/browser/ui/views/frame/ranga_peek_view.cc
-@@ -87,7 +87,7 @@
+@@ -87,7 +87,7 @@ content::WebContents* OpenPeekIn(
      content::WebContents* source,
      const content::OpenURLParams* params,
      std::unique_ptr<content::WebContents>* contents) {
@@ -536,7 +536,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
    BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
 --- a/chrome/browser/ui/views/frame/ranga_spotlight_view.h
 +++ b/chrome/browser/ui/views/frame/ranga_spotlight_view.h
-@@ -32,7 +32,7 @@
+@@ -32,7 +32,7 @@ class RangaSpotlightView : public views:
    ~RangaSpotlightView() override;
  
    const std::string& page() const { return page_; }
@@ -563,7 +563,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  #include "ui/base/metadata/metadata_impl_macros.h"
  #include "ui/base/page_transition_types.h"
  #include "ui/gfx/geometry/rect.h"
-@@ -31,7 +33,9 @@
+@@ -31,7 +33,9 @@ RangaSpotlightView::RangaSpotlightView(c
  
  RangaSpotlightView::~RangaSpotlightView() = default;
  
@@ -574,7 +574,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
    SetBoundsRect(bounds);
    content::WebContents* contents = GetWebContents();
    contents->SetPageBaseBackgroundColor(SK_ColorTRANSPARENT);
-@@ -45,7 +49,9 @@
+@@ -45,7 +49,9 @@ void RangaSpotlightView::Show(std::strin
        contents->GetController().GetEntryCount() > 0;
    contents->GetController().LoadURLWithParams(params);
    SetVisible(true);
@@ -585,7 +585,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  }
  
  void RangaSpotlightView::Preload() {
-@@ -146,12 +152,22 @@
+@@ -146,12 +152,22 @@ bool RangaShowSpotlight(BrowserWindowInt
        browser->GetType() != BrowserWindowInterface::Type::TYPE_NORMAL) {
      return false;
    }
@@ -624,7 +624,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  #include "extensions/browser/event_router.h"
  #include "extensions/browser/extension_event_histogram_value.h"
  #include "ui/base/class_property.h"
-@@ -113,6 +115,23 @@
+@@ -113,6 +115,23 @@ std::optional<int> ModifierFor(std::stri
    return std::nullopt;
  }
  
@@ -648,7 +648,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  class RangaShortcutTarget : public ui::AcceleratorTarget {
   public:
    explicit RangaShortcutTarget(BrowserView* browser_view)
-@@ -146,6 +165,10 @@
+@@ -146,6 +165,10 @@ class RangaShortcutTarget : public ui::A
        return false;
      }
      BrowserWindowInterface* browser = browser_view_->browser();
@@ -661,7 +661,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
      args.Append(it->second);
 --- a/chrome/common/extensions/api/ranga_private.idl
 +++ b/chrome/common/extensions/api/ranga_private.idl
-@@ -201,6 +201,21 @@
+@@ -201,6 +201,21 @@ namespace rangaPrivate {
  
      // The window's open Peek, if any.
      static void getPeek(long windowId, PeekCallback callback);
@@ -685,7 +685,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
    interface Events {
 --- a/chrome/browser/extensions/api/ranga_private/ranga_private_api.h
 +++ b/chrome/browser/extensions/api/ranga_private/ranga_private_api.h
-@@ -208,6 +208,24 @@
+@@ -208,6 +208,24 @@ class RangaPrivateGetPeekFunction : publ
    ResponseAction Run() override;
  };
  
@@ -736,7 +736,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  #include "ui/base/models/image_model.h"
  #include "ui/base/page_transition_types.h"
  #include "ui/base/window_open_disposition.h"
-@@ -72,6 +75,8 @@
+@@ -72,6 +75,8 @@ constexpr char kNoCommandError[] = "Unkn
  constexpr char kBadUrlError[] = "Invalid url *.";
  constexpr char kNoContainerError[] = "Only a container can be cleared.";
  constexpr char kNoPeekError[] = "The window has no Peek.";
@@ -745,7 +745,7 @@ Janela pequena pra links de outros apps: com o Ranga aberto, um link passado por
  
  struct Command {
    const char* name;
-@@ -627,4 +632,53 @@
+@@ -627,4 +632,53 @@ ExtensionFunction::ResponseAction RangaP
    return RespondNow(WithArguments(std::move(*state)));
  }
  
