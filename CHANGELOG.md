@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.1 — 19/11/2026
+- **Histórico no Voltar e no Avançar**: botão direito no Voltar ou no Avançar da barra lista as páginas daquela aba (as 12 mais perto, com o ícone do site) e um clique vai direto pra ela. No fim, "Mostrar histórico completo".
+- **Barra recolhida abre mais fácil**: a área perto da borda que abre a barra passou de 6 px pra 16 px, e a espera caiu de meio segundo pra um quarto de segundo. Passar pela borda a caminho de outro programa continua sem abrir.
+- **Cartão de download dos apps inteiro**: o cartão tinha tamanho fixo e aparecia cortado com outra fonte ou outro zoom (no PC, por exemplo). Agora ele cresce com o conteúdo, e a sombra não é mais cortada embaixo.
+- **Menu do botão direito com a cara do Ranga**: o menu da página, dos links e dos campos de texto ganhou cantos mais arredondados, itens mais altos e o destaque arredondado afastado das bordas, como o menu da barra lateral.
+- **Fixados e grupos abrem onde você está**: clicar num fixado ou numa página de grupo (como "meus tickets") que estava aberta em outra janela ou em outro espaço não leva mais você pra lá. Cada janela e cada espaço tem a própria aba dele, aberta ali mesmo com a conta do espaço.
+- **Links de apps no espaço da tela**: um link aberto de um app instalado num espaço (o Teams no espaço do trabalho, por exemplo) abre no espaço que está na tela, com a conta dele, em vez de trocar a janela pro espaço do app.
+- **Nova aba com o Spotlight**: o botão Nova aba da barra abre uma aba nova já com o Spotlight em cima dela. O Ctrl+T continua abrindo só o Spotlight.
+
 ## 0.6.0 — 14/11/2026
 - **Chromium 157**: o Ranga passa pro Helium 0.21.3 sobre o Chromium 157.0.8103.78 (o Chrome estável de 11/11), com as correções de segurança dele. Antes estava no Helium 0.20.1 / Chromium 156.
 - **Do Helium 0.21**: "Copiar link do download" no menu dos downloads, ruído contra fingerprinting em todos os contextos de execução da página, notificações push dos sites (compatível com o autopush), mais opções de sugestões na busca, uBlock Origin 1.75.4 e a tradução de páginas começando pelo que está na tela.

@@ -4,7 +4,7 @@ import { showMenu } from "./context-menu.js";
 import { animate, pop } from "./motion.js";
 import { call } from "./ranga-private.js";
 import { faviconOf } from "./tabs-model.js";
-import { pinId, drifted, prune, tabOf, pinSnapshot } from "./pins-model.js";
+import { pinId, drifted, prune, tabOf, forgetNode, pinSnapshot } from "./pins-model.js";
 import { loadContainers, pagesOf, addPage, removePage, updatePage, findPage, toggleGroup, pageIds, restorePages, pageTitle } from "./containers-model.js";
 
 function icon(name) {
@@ -32,6 +32,7 @@ export function setupContainerGroups({ section, list, windowId, assign, session,
   let containers = loadContainers(undefined);
   let live = {};
   let renaming = false;
+  let here = new Map();
 
   async function save(next) {
     containers = next;
@@ -73,23 +74,22 @@ export function setupContainerGroups({ section, list, windowId, assign, session,
   }
 
   async function open(page) {
-    const tabId = tabOf(live, page.id);
+    const tabId = tabOf(live, page.id, here);
     const tab = tabId != null ? await chrome.tabs.get(tabId).catch(() => null) : null;
-    if (tab) {
-      if (tab.windowId === windowId() && sessionOfTab(tab.id) === session()) await assign(tab.id);
+    if (tab && sessionOfTab(tab.id) === session()) {
       await chrome.tabs.update(tab.id, { active: true });
-      if (tab.windowId !== windowId()) await chrome.windows.update(tab.windowId, { focused: true });
       return;
     }
+    const { [tabId]: _, ...rest } = live;
     const created = await create(page.url, true);
-    await saveLive({ ...live, [created]: page.id });
+    await saveLive({ ...rest, [created]: page.id });
     await assign(created);
     changed();
   }
 
   async function openAll(container) {
     for (const page of pagesOf(container)) {
-      if (tabOf(live, page.id) != null) continue;
+      if (tabOf(live, page.id, here) != null) continue;
       const created = await create(page.url, false);
       live = { ...live, [created]: page.id };
       await assign(created);
@@ -99,7 +99,7 @@ export function setupContainerGroups({ section, list, windowId, assign, session,
   }
 
   async function closeAll(container) {
-    const ids = pagesOf(container).map((p) => tabOf(live, p.id)).filter((id) => id != null);
+    const ids = pagesOf(container).map((p) => tabOf(live, p.id, here)).filter((id) => id != null);
     if (ids.length) await chrome.tabs.remove(ids).catch(() => {});
   }
 
@@ -115,12 +115,9 @@ export function setupContainerGroups({ section, list, windowId, assign, session,
     if (tab) await saveTab(tab, containerId);
   }
 
-  async function forget(page, tab) {
+  async function forget(page) {
     await save(removePage(containers, page.id));
-    if (tab) {
-      const { [tab.id]: _, ...rest } = live;
-      await saveLive(rest);
-    }
+    await saveLive(forgetNode(live, page.id));
     changed();
   }
 
@@ -165,13 +162,13 @@ export function setupContainerGroups({ section, list, windowId, assign, session,
       { icon: "pencil", label: "Renomear", action: () => rename(li, page, tab) },
       { icon: "link", label: "Copiar link", action: () => navigator.clipboard.writeText(tab?.url || page.url) },
       "divider",
-      { icon: "trash-2", label: `Tirar do grupo ${container.name}`, action: () => forget(page, tab) },
+      { icon: "trash-2", label: `Tirar do grupo ${container.name}`, action: () => forget(page) },
       ...(tab ? [{ icon: "x", label: "Fechar", danger: true, action: () => chrome.tabs.remove(tab.id) }] : []),
     ], x, y);
   }
 
   function groupMenu(container, x, y) {
-    const open = pagesOf(container).filter((p) => tabOf(live, p.id) != null).length;
+    const open = pagesOf(container).filter((p) => tabOf(live, p.id, here) != null).length;
     showMenu([
       { icon: "layers", label: "Abrir todas as páginas", action: () => openAll(container) },
       ...(open ? [{ icon: "x", label: "Fechar as abas do grupo", action: () => closeAll(container) }] : []),
@@ -182,7 +179,7 @@ export function setupContainerGroups({ section, list, windowId, assign, session,
   }
 
   function pageRow(container, page, tabs, activeId) {
-    const tab = tabs.get(tabOf(live, page.id));
+    const tab = tabs.get(tabOf(live, page.id, tabs));
     const li = document.createElement("li");
     li.className = "k-list-item k-state k-type-label tab group-page" + (tab ? "" : " group-page--closed") + (tab && tab.id === activeId ? " k-list-item--active" : "");
     const title = titleOf(page, tab);
@@ -220,8 +217,8 @@ export function setupContainerGroups({ section, list, windowId, assign, session,
 
   function group(container, tabs, activeId) {
     const pages = pagesOf(container);
-    const openTabs = pages.filter((p) => tabs.has(tabOf(live, p.id)));
-    const holdsActive = pages.some((p) => tabOf(live, p.id) === activeId);
+    const openTabs = pages.filter((p) => tabOf(live, p.id, tabs) != null);
+    const holdsActive = pages.some((p) => live[activeId] === p.id);
     const li = document.createElement("li");
     li.className = "group" + (container.collapsed ? " group--collapsed" : "");
     li.style.setProperty("--container-color", container.color);
@@ -257,7 +254,7 @@ export function setupContainerGroups({ section, list, windowId, assign, session,
     };
     head.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); groupMenu(container, e.clientX, e.clientY); };
     li.append(head);
-    const visible = container.collapsed ? pages.filter((p) => tabOf(live, p.id) === activeId) : pages;
+    const visible = container.collapsed ? pages.filter((p) => live[activeId] === p.id) : pages;
     if (visible.length) {
       const body = document.createElement("ul");
       body.className = "group__pages k-list";
@@ -270,6 +267,7 @@ export function setupContainerGroups({ section, list, windowId, assign, session,
   let expanded = null;
 
   function render(tabs, activeId) {
+    here = tabs;
     if (renaming) return;
     const shown = containers.filter((c) => pagesOf(c).length);
     section.hidden = shown.length === 0;

@@ -1,4 +1,4 @@
-Barra lateral recolhida: o mouse tem que ficar meio segundo na borda pra ela abrir, e quem saiu da janela por ela só abre a barra se a janela continuar com o foco. Passar pra um programa ao lado não abre mais a barra.
+Barra lateral recolhida: o mouse tem que ficar um quarto de segundo perto da borda (16 px) pra ela abrir, e quem saiu da janela por ela só abre a barra se a janela continuar com o foco. Passar pra um programa ao lado não abre mais a barra.
 
 --- a/chrome/browser/ui/views/frame/ranga_sidebar_mode.cc
 +++ b/chrome/browser/ui/views/frame/ranga_sidebar_mode.cc
@@ -24,7 +24,8 @@ Barra lateral recolhida: o mouse tem que ficar meio segundo na borda pra ela abr
      BrowserView* view = BrowserView::GetBrowserViewForBrowser(browser_);
 @@ -193,6 +200,20 @@
                             : point.x();
-     const float reach = exited ? kReach : kRangaSidebarEdgeWidth;
+-    const float reach = exited ? kReach : kRangaSidebarEdgeWidth;
++    const float reach = exited ? kReach : kRevealZone;
      if (side <= reach && side < point.y() && side < size.height() - point.y()) {
 +      if (!reveal_.IsRunning()) {
 +        reveal_.Start(FROM_HERE, kRevealDelay,
@@ -43,11 +44,12 @@ Barra lateral recolhida: o mouse tem que ficar meio segundo na borda pra ela abr
        RangaSetSidebarMode(browser_, RangaSidebarMode::kFloating);
      }
    }
-@@ -201,11 +222,13 @@
+@@ -201,11 +222,14 @@
  
   private:
    static constexpr float kReach = 48;
-+  static constexpr base::TimeDelta kRevealDelay = base::Milliseconds(500);
++  static constexpr float kRevealZone = 16;
++  static constexpr base::TimeDelta kRevealDelay = base::Milliseconds(250);
  
    const raw_ptr<BrowserWindowInterface> browser_;
    const SessionID::id_type id_;

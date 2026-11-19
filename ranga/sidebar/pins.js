@@ -3,7 +3,7 @@ import { showMenu } from "./context-menu.js";
 import { pop } from "./motion.js";
 import { call } from "./ranga-private.js";
 import {
-  pinId, find, parentOf, links, addLink, addFolder, remove, rename, setUrl, toggle, move, place, drifted, prune, tabOf, pinSnapshot, restoreLive,
+  pinId, find, parentOf, links, addLink, addFolder, remove, rename, setUrl, toggle, move, place, drifted, prune, tabOf, forgetNode, pinSnapshot, restoreLive,
 } from "./pins-model.js";
 
 function faviconFor(url) {
@@ -23,6 +23,7 @@ export function setupPins({ section, grid, windowId, spaceId, assign, container,
   let renaming = null;
   let drag = null;
   let deferred = null;
+  let here = new Map();
 
   const tree = (space = spaceId()) => pins[space] ?? [];
 
@@ -72,12 +73,11 @@ export function setupPins({ section, grid, windowId, spaceId, assign, container,
   }
 
   async function open(node) {
-    const tabId = tabOf(live, node.id);
+    const tabId = tabOf(live, node.id, here);
     if (tabId != null) {
       const tab = await chrome.tabs.get(tabId).catch(() => null);
       if (tab) {
         await chrome.tabs.update(tab.id, { active: true });
-        if (tab.windowId !== windowId()) await chrome.windows.update(tab.windowId, { focused: true });
         return;
       }
     }
@@ -97,12 +97,7 @@ export function setupPins({ section, grid, windowId, spaceId, assign, container,
   }
 
   async function unpin(node) {
-    const tabId = tabOf(live, node.id);
-    if (tabId != null) {
-      const next = { ...live };
-      delete next[tabId];
-      await saveLive(next);
-    }
+    if (tabOf(live, node.id) != null) await saveLive(forgetNode(live, node.id));
     await savePins(remove(tree(), node.id));
   }
 
@@ -187,7 +182,7 @@ export function setupPins({ section, grid, windowId, spaceId, assign, container,
 
   function linkTile(node, tabs, activeId) {
     if (renaming === node.id) return renameTile(node);
-    const tab = tabs.get(tabOf(live, node.id));
+    const tab = tabs.get(tabOf(live, node.id, tabs));
     const li = document.createElement("li");
     li.className = "ess k-state" + (tab ? "" : " ess--closed") + (tab && tab.id === activeId ? " ess--active" : "");
     li.title = node.title;
@@ -213,7 +208,7 @@ export function setupPins({ section, grid, windowId, spaceId, assign, container,
   function folderTiles(node, tabs, activeId) {
     if (renaming === node.id) return [renameTile(node)];
     const li = document.createElement("li");
-    const hasActive = node.children.some((c) => tabOf(live, c.id) === activeId);
+    const hasActive = node.children.some((c) => live[activeId] === c.id);
     li.className = "ess ess--folder k-state" + (node.open ? " ess--open" : "") + (!node.open && hasActive ? " ess--active" : "");
     li.title = node.title;
     li.append(icon(node.open ? "folder-open" : "folder"), Object.assign(document.createElement("span"), { className: "ess-name k-type-caption", textContent: node.title }));
@@ -298,6 +293,7 @@ export function setupPins({ section, grid, windowId, spaceId, assign, container,
       deferred = [tabs, activeId];
       return;
     }
+    here = tabs;
     const nodes = tree();
     section.hidden = nodes.length === 0;
     grid.replaceChildren(...nodes.flatMap((n) => (n.kind === "folder" ? folderTiles(n, tabs, activeId) : [linkTile(n, tabs, activeId)])));

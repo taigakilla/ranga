@@ -1,0 +1,49 @@
+Link aberto de um app (o Teams, por exemplo) abre no container do espaço ativo da janela que recebe a aba, e não no container do app: a aba fica no espaço que está na tela em vez de levar a janela pro espaço do app.
+
+--- a/chrome/browser/ui/navigator/browser_navigator.cc
++++ b/chrome/browser/ui/navigator/browser_navigator.cc
+@@ -579,11 +579,16 @@
+     initiator = content::RenderFrameHost::FromFrameToken(
+         content::GlobalRenderFrameHostToken(params.initiator_process_id,
+                                             *params.initiator_frame_token));
++    content::WebContents* source =
++        initiator ? content::WebContents::FromRenderFrameHost(initiator)
++                  : nullptr;
++    if (source && params.browser->tab_strip_model()->GetIndexOfWebContents(
++                      source) == TabStripModel::kNoTab) {
++      initiator = nullptr;
++      source = nullptr;
++    }
+     if (scoped_refptr<content::SiteInstance> container =
+-            RangaContainerSiteInstanceFor(
+-                initiator ? content::WebContents::FromRenderFrameHost(initiator)
+-                          : nullptr,
+-                url)) {
++            RangaContainerSiteInstanceFor(source, url)) {
+       initial_site_instance_for_new_contents = std::move(container);
+     }
+   }
+@@ -924,6 +929,23 @@
+     params->disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+   }
+ 
++  if (source_browser && source_browser != params->browser &&
++      source_browser->GetType() == BrowserWindowInterface::Type::TYPE_APP &&
++      params->contents_to_insert && params->url.SchemeIsHTTPOrHTTPS()) {
++    auto it = RangaWindowContainers().find(params->browser->GetSessionID().id());
++    const std::string window_container =
++        it != RangaWindowContainers().end() ? it->second : std::string();
++    if (RangaContainerOf(params->contents_to_insert.get()) !=
++        window_container) {
++      params->contents_to_insert.reset();
++      contents_to_navigate_or_insert = nullptr;
++      params->opener = nullptr;
++      params->source_contents = nullptr;
++      params->source_site_instance = nullptr;
++      params->initiator_frame_token.reset();
++    }
++  }
++
+   if (singleton_index != -1) {
+     contents_to_navigate_or_insert =
+         params->browser->GetTabStripModel()->GetWebContentsAt(singleton_index);

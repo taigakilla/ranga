@@ -513,16 +513,17 @@ function render() {
 }
 
 async function paint() {
-  const all = await chrome.tabs.query({});
-  const tabs = all.filter((t) => t.windowId === windowId);
+  const tabs = await chrome.tabs.query({ windowId });
   await containers.load();
   const kept = keptIds();
-  const visible = visibleTabs(spaces, tabs, windowId).filter((t) => !kept.has(t.id));
+  const inSpace = visibleTabs(spaces, tabs, windowId);
+  const visible = inSpace.filter((t) => !kept.has(t.id));
   const active = tabs.find((t) => t.active);
   const items = toItems(visible, active?.id, (t) => spaces.tabTitle[t.id] || bookmarkTitles.get(t.url) || "");
-  pins.render(new Map(all.map((t) => [t.id, t])), active?.id);
+  const here = new Map(inSpace.map((t) => [t.id, t]));
+  pins.render(here, active?.id);
   if (incognito) document.getElementById("groups").hidden = true;
-  else groups.render(new Map(all.map((t) => [t.id, t])), active?.id);
+  else groups.render(here, active?.id);
   tabList.render(items.filter((i) => !i.pinned));
   activeUrl = active?.url || active?.pendingUrl || "";
   activeTabId = active?.id ?? null;
@@ -673,10 +674,29 @@ document.getElementById("address-icon").onclick = () => {
 const iconOf = (id) => document.querySelector(`#${id} .k-icon`);
 document.getElementById("back").onclick = async () => { kick(iconOf("back"), "translateX(-7px)"); chrome.tabs.goBack((await activeTab()).id); };
 document.getElementById("forward").onclick = async () => { kick(iconOf("forward"), "translateX(7px)"); chrome.tabs.goForward((await activeTab()).id); };
+function faviconFor(url) {
+  return chrome.runtime.getURL(`/_favicon/?pageUrl=${encodeURIComponent(url)}&size=32`);
+}
+
+async function showHistory(e, forward) {
+  e.preventDefault();
+  const { left, bottom } = e.currentTarget.getBoundingClientRect();
+  const tab = await activeTab();
+  if (!tab || !rangaPrivate) return;
+  const entries = await call("getHistory", tab.id, forward).catch(() => []);
+  if (!entries.length) return;
+  showMenu([
+    ...entries.map((entry) => ({ image: faviconFor(entry.url), label: entry.title || entry.url, action: () => call("goToHistory", tab.id, entry.offset).catch(() => {}) })),
+    "divider",
+    { icon: "history", label: "Mostrar histórico completo", action: () => chrome.tabs.create({ url: "chrome://history", windowId }) },
+  ], left, bottom + 4);
+}
+document.getElementById("back").oncontextmenu = (e) => showHistory(e, false);
+document.getElementById("forward").oncontextmenu = (e) => showHistory(e, true);
 document.getElementById("reload").onclick = async () => { spin(iconOf("reload")); chrome.tabs.reload((await activeTab()).id); };
-document.getElementById("new-tab").onclick = () => {
-  if (rangaPrivate) call("executeCommand", windowId, "newTab").catch(() => chrome.tabs.create({ windowId }));
-  else chrome.tabs.create({ windowId });
+document.getElementById("new-tab").onclick = async () => {
+  await blankTab(activeSpace(spaces, windowId).id, true);
+  if (rangaPrivate) call("executeCommand", windowId, "openLocation").catch(() => {});
 };
 
 let groupTab = null;
@@ -868,8 +888,9 @@ chrome.tabs.onCreated.addListener(async (tab) => {
   if (ready && tab.windowId === windowId && !spaces.tabSpace[tab.id]) {
     await containers.load();
     const session = containers.sessionOfTab(tab.id);
-    const owner = spaces.spaces.find((s) => (s.session ?? "") === session)?.id;
-    const space = owner && (session || /^https?:/.test(tab.url || tab.pendingUrl || "")) ? owner : activeSpace(spaces, windowId).id;
+    const current = activeSpace(spaces, windowId);
+    const owner = (current.session ?? "") === session ? current.id : spaces.spaces.find((s) => (s.session ?? "") === session)?.id;
+    const space = owner && (session || /^https?:/.test(tab.url || tab.pendingUrl || "")) ? owner : current.id;
     await moveTabToSpace(space === owner ? tab.id : await intoSession(tab.id, space), space);
   }
   render();
@@ -980,7 +1001,7 @@ document.documentElement.addEventListener("mouseleave", (e) => {
 document.documentElement.addEventListener("mouseenter", () => {
   clearTimeout(leaveTimer);
   clearTimeout(revealTimer);
-  if (sidebarMode === "collapsed") revealTimer = setTimeout(() => { if (sidebarMode === "collapsed") setSidebarMode("floating"); }, 500);
+  if (sidebarMode === "collapsed") revealTimer = setTimeout(() => { if (sidebarMode === "collapsed") setSidebarMode("floating"); }, 250);
 });
 
 async function splitWithPrevious() {

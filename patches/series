@@ -76,3 +76,7 @@ ranga/ui/app-download-card.patch
 ranga/ui/sidebar-reveal-delay.patch
 ranga/ui/translator-containers.patch
 ranga/ui/notices.patch
+ranga/ui/back-forward-history.patch
+ranga/ui/download-card-size.patch
+ranga/ui/menu-style.patch
+ranga/ui/app-links-active-space.patch

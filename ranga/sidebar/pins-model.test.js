@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pinId, find, parentOf, links, addLink, addFolder, remove, rename, setUrl, toggle, move, place, drifted, prune, tabOf, pinSnapshot, restoreLive } from "./pins-model.js";
+import { pinId, find, parentOf, links, addLink, addFolder, remove, rename, setUrl, toggle, move, place, drifted, prune, tabOf, forgetNode, pinSnapshot, restoreLive } from "./pins-model.js";
 
 const tree = [
   { id: "f1", kind: "folder", title: "Trabalho", open: true, children: [
@@ -61,6 +61,13 @@ test("desvio de endereço ignora âncora e barra final", () => {
   assert.equal(drifted("https://gitlab.com/a/", "https://gitlab.com/a"), false);
   assert.equal(drifted("https://gitlab.com/", "https://gitlab.com/mr/42"), true);
   assert.equal(drifted("https://gitlab.com/", ""), false);
+});
+
+test("cada janela e espaço tem a própria aba de um fixado", () => {
+  const live = { 5: "l1", 8: "l1", 6: "l3" };
+  assert.equal(tabOf(live, "l1", new Map([[8, {}]])), 8);
+  assert.equal(tabOf(live, "l1", new Set([6])), null);
+  assert.deepEqual(forgetNode(live, "l1"), { 6: "l3" });
 });
 
 test("mapa de abas vivas: limpar, achar e sobreviver ao reinício pela URL", () => {

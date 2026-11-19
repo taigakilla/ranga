@@ -106,9 +106,13 @@ export function prune(live, tabIds, nodeIds) {
   return Object.fromEntries(Object.entries(live).filter(([tab, node]) => tabIds.has(Number(tab)) && nodeIds.has(node)));
 }
 
-export function tabOf(live, nodeId) {
-  const entry = Object.entries(live).find(([, node]) => node === nodeId);
+export function tabOf(live, nodeId, here = null) {
+  const entry = Object.entries(live).find(([tab, node]) => node === nodeId && (!here || here.has(Number(tab))));
   return entry ? Number(entry[0]) : null;
+}
+
+export function forgetNode(live, nodeId) {
+  return Object.fromEntries(Object.entries(live).filter(([, node]) => node !== nodeId));
 }
 
 export function pinSnapshot(live, tabs) {

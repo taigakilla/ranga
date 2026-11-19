@@ -1,8 +1,6 @@
-html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; font-family: var(--k-type-family); color: var(--k-color-on-surface); }
+html, body { margin: 0; background: transparent; overflow: hidden; font-family: var(--k-type-family); color: var(--k-color-on-surface); }
+body { display: flow-root; padding: 12px 12px 18px; }
 .card {
-  position: fixed;
-  right: 12px;
-  bottom: 12px;
   width: 380px;
   box-sizing: border-box;
   display: flex;

@@ -1,0 +1,42 @@
+Menus nativos (o da página, links, campos, listas) com a cara do menu do Ranga: cantos de 16 px, itens de 36 px de altura e o destaque arredondado com recuo das bordas, como o menu da barra lateral.
+
+--- a/ui/views/controls/menu/menu_config.h
++++ b/ui/views/controls/menu/menu_config.h
+@@ -176,6 +176,9 @@
+   // Radius of selection background on menu items.
+   int item_corner_radius = 0;
+ 
++  // Horizontal gap between the selection background and the menu's edges.
++  int item_highlight_horizontal_inset = 0;
++
+   // Anchor offset for touchable menus created by a touch event.
+   int touchable_anchor_offset = 8;
+ 
+--- a/ui/views/controls/menu/menu_config_linux.cc
++++ b/ui/views/controls/menu/menu_config_linux.cc
+@@ -10,6 +10,13 @@
+ 
+ void MenuConfig::InitPlatform() {
+   use_bubble_border = true;
++  corner_radius = 16;
++  auxiliary_corner_radius = 16;
++  rounded_menu_vertical_border_size = 6;
++  minimum_text_item_height = 36;
++  item_corner_radius = 10;
++  item_highlight_horizontal_inset = 6;
++  item_horizontal_border_padding = 18;
+ }
+ 
+ }  // namespace views
+--- a/ui/views/controls/menu/menu_item_view.cc
++++ b/ui/views/controls/menu/menu_item_view.cc
+@@ -1431,6 +1431,9 @@
+       item_bounds.Inset(gfx::Insets::TLBR(
+           menu_item_background_->top_padding, horizontal_margin,
+           menu_item_background_->bottom_padding, horizontal_margin));
++    } else {
++      item_bounds.Inset(
++          gfx::Insets::VH(0, config.item_highlight_horizontal_inset));
+     }
+     if (type_ == Type::kActionableSubMenu) {
+       if (submenu_area_of_actionable_submenu_selected_) {

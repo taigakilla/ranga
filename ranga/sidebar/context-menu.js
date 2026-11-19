@@ -60,7 +60,8 @@ function fill(list, entries) {
     li.className = "k-menu__item k-state k-type-label" + (entry.danger ? " k-menu__item--danger" : "");
     li.setAttribute("role", "menuitem");
     li.innerHTML = `<span class="k-icon"></span><span class="k-menu__label"></span>`;
-    li.firstChild.textContent = glyph(entry.icon);
+    if (entry.image) li.firstChild.replaceWith(Object.assign(document.createElement("img"), { className: "k-menu__image", src: entry.image, alt: "" }));
+    else li.firstChild.textContent = glyph(entry.icon);
     li.children[1].textContent = entry.label;
     if (entry.submenu) {
       li.setAttribute("aria-haspopup", "menu");

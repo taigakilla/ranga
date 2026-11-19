@@ -1,0 +1,83 @@
+Cartão de download dos apps do tamanho do conteúdo: a página do cartão diz o tamanho que precisa (auto-resize) e o cartão cresce com ela, em vez de 404x136 fixos que cortavam o cartão com outra fonte ou outro zoom.
+
+--- a/chrome/browser/ui/views/frame/ranga_spotlight_view.h
++++ b/chrome/browser/ui/views/frame/ranga_spotlight_view.h
+@@ -48,6 +48,9 @@
+   void TitleWasSet(content::NavigationEntry* entry) override;
+   void RenderFrameCreated(content::RenderFrameHost* render_frame_host) override;
+ 
++ protected:
++  void PreferredSizeChanged() override;
++
+  private:
+   std::string page_;
+   std::unique_ptr<content::WebContents> LoadedContents();
+--- a/chrome/browser/ui/views/frame/ranga_spotlight_view.cc
++++ b/chrome/browser/ui/views/frame/ranga_spotlight_view.cc
+@@ -30,6 +30,7 @@
+ #include "ui/base/page_transition_types.h"
+ #include "ui/gfx/geometry/point.h"
+ #include "ui/gfx/geometry/rect.h"
++#include "ui/gfx/geometry/size.h"
+ #include "url/gurl.h"
+ 
+ RangaSpotlightView::RangaSpotlightView(content::BrowserContext* browser_context,
+@@ -139,6 +140,14 @@
+   }
+ }
+ 
++void RangaSpotlightView::PreferredSizeChanged() {
++  views::WebView::PreferredSizeChanged();
++  if (auto* browser_view = views::AsViewClass<BrowserView>(parent());
++      browser_view && GetVisible()) {
++    RangaLayoutPanes(browser_view);
++  }
++}
++
+ void RangaSpotlightView::TitleWasSet(content::NavigationEntry* entry) {
+   const std::u16string& title = GetWebContents()->GetTitle();
+   if (base::StartsWith(title, u"ranga-spotlight:close")) {
+@@ -320,12 +329,17 @@
+   return overlay;
+ }
+ 
+-gfx::Rect RangaDownloadCard(BrowserView* browser_view) {
+-  constexpr int kWidth = 404;
+-  constexpr int kHeight = 136;
++constexpr gfx::Size kDownloadCardMin(404, 80);
++constexpr gfx::Size kDownloadCardMax(640, 320);
++
++gfx::Rect RangaDownloadCard(BrowserView* browser_view,
++                            RangaSpotlightView* card) {
++  gfx::Size size = card->GetPreferredSize();
++  size.SetToMax(kDownloadCardMin);
+   const gfx::Rect area = RangaContentsArea(browser_view);
+-  return gfx::Rect(area.right() - kWidth, area.bottom() - kHeight, kWidth,
+-                   kHeight);
++  size.SetToMin(area.size());
++  return gfx::Rect(area.right() - size.width(), area.bottom() - size.height(),
++                   size.width(), size.height());
+ }
+ 
+ gfx::Rect RangaNoticeCard(BrowserView* browser_view) {
+@@ -358,8 +372,9 @@
+   if (!browser_view) {
+     return;
+   }
+-  RangaOverlayFor(browser_view, "download.html")
+-      ->Show(base::NumberToString(id), RangaDownloadCard(browser_view),
++  RangaSpotlightView* card = RangaOverlayFor(browser_view, "download.html");
++  card->EnableSizingFromWebContents(kDownloadCardMin, kDownloadCardMax);
++  card->Show(base::NumberToString(id), RangaDownloadCard(browser_view, card),
+              /*focus=*/false);
+ }
+ 
+@@ -398,7 +413,7 @@
+   if (RangaSpotlightView* download =
+           RangaFindOverlay(browser_view, "download.html");
+       download && download->GetVisible()) {
+-    download->SetBoundsRect(RangaDownloadCard(browser_view));
++    download->SetBoundsRect(RangaDownloadCard(browser_view, download));
+   }
+   if (!RangaOwnsWindow(browser_view)) {
+     return;

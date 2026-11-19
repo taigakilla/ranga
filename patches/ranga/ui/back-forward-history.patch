@@ -1,0 +1,142 @@
+Histórico no botão direito do Voltar e do Avançar da barra lateral: rangaPrivate.getHistory lista as páginas pra trás ou pra frente da aba (as 12 mais perto, como o menu do Chromium) e rangaPrivate.goToHistory vai até uma delas.
+
+--- a/chrome/common/extensions/api/ranga_private.idl
++++ b/chrome/common/extensions/api/ranga_private.idl
+@@ -83,6 +83,14 @@
+     boolean live;
+   };
+ 
++  // A page in a tab's history. <code>offset</code> is how far it is from the
++  // current page: negative going back, positive going forward.
++  dictionary HistoryEntry {
++    long offset;
++    DOMString title;
++    DOMString url;
++  };
++
+   // Where a find in the page stands.
+   dictionary FindResult {
+     long matches;
+@@ -137,6 +145,7 @@
+   callback TabIdCallback = void(long tabId);
+   callback TabContainersCallback = void(TabContainer[] tabs);
+   callback MediaSessionsCallback = void(MediaSessionState[] sessions);
++  callback HistoryCallback = void(HistoryEntry[] entries);
+   callback CommandsCallback = void(DOMString[] commands);
+   callback CrashedSessionCallback = void(boolean offered);
+   callback RejectedCallback = void(DOMString[] rejected);
+@@ -323,6 +332,21 @@
+         optional double seconds,
+         optional DoneCallback callback);
+ 
++    // The pages the tab can go back to (<code>forward</code> false) or
++    // forward to, nearest first, as the back and forward buttons' menus list
++    // them.
++    static void getHistory(
++        long tabId,
++        boolean forward,
++        HistoryCallback callback);
++
++    // Goes <code>offset</code> pages back (negative) or forward in the tab's
++    // history.
++    static void goToHistory(
++        long tabId,
++        long offset,
++        optional DoneCallback callback);
++
+     // Signs out of everything in a container: removes its cookies, site
+     // storage and cache.
+     static void clearContainer(
+--- a/chrome/browser/extensions/api/ranga_private/ranga_private_api.h
++++ b/chrome/browser/extensions/api/ranga_private/ranga_private_api.h
+@@ -340,6 +340,24 @@
+   ResponseAction Run() override;
+ };
+ 
++class RangaPrivateGetHistoryFunction : public ExtensionFunction {
++ public:
++  DECLARE_EXTENSION_FUNCTION("rangaPrivate.getHistory", UNKNOWN)
++
++ protected:
++  ~RangaPrivateGetHistoryFunction() override = default;
++  ResponseAction Run() override;
++};
++
++class RangaPrivateGoToHistoryFunction : public ExtensionFunction {
++ public:
++  DECLARE_EXTENSION_FUNCTION("rangaPrivate.goToHistory", UNKNOWN)
++
++ protected:
++  ~RangaPrivateGoToHistoryFunction() override = default;
++  ResponseAction Run() override;
++};
++
+ }  // namespace extensions
+ 
+ #endif  // CHROME_BROWSER_EXTENSIONS_API_RANGA_PRIVATE_RANGA_PRIVATE_API_H_
+--- a/chrome/browser/extensions/api/ranga_private/ranga_private_api.cc
++++ b/chrome/browser/extensions/api/ranga_private/ranga_private_api.cc
+@@ -121,6 +121,7 @@
+ constexpr char kNoContainerError[] = "Only a container can be cleared.";
+ constexpr char kNoPageInfoError[] = "The active tab has no site information.";
+ constexpr char kNoPeekError[] = "The window has no Peek.";
++constexpr size_t kMaxHistoryEntries = 12;
+ constexpr char kNotLittleError[] = "The window isn't a small window.";
+ constexpr char kNoMainWindowError[] = "Can't move the page to a main window.";
+ 
+@@ -1116,6 +1117,55 @@
+   return RespondNow(NoArguments());
+ }
+ 
++ExtensionFunction::ResponseAction RangaPrivateGetHistoryFunction::Run() {
++  auto params = ranga_private::GetHistory::Params::Create(args());
++  EXTENSION_FUNCTION_VALIDATE(params);
++
++  content::WebContents* contents = nullptr;
++  if (!ExtensionTabUtil::GetTabById(params->tab_id, browser_context(),
++                                    /*include_incognito=*/true, &contents) ||
++      !contents) {
++    return RespondNow(Error("No tab with that id."));
++  }
++  content::NavigationController& controller = contents->GetController();
++  const int current = controller.GetCurrentEntryIndex();
++  const int step = params->forward ? 1 : -1;
++  std::vector<ranga_private::HistoryEntry> entries;
++  for (int index = current + step;
++       index >= 0 && index < controller.GetEntryCount() &&
++       entries.size() < kMaxHistoryEntries;
++       index += step) {
++    content::NavigationEntry* entry = controller.GetEntryAtIndex(index);
++    if (entry->IsInitialEntry()) {
++      continue;
++    }
++    ranga_private::HistoryEntry& item = entries.emplace_back();
++    item.offset = index - current;
++    item.title = base::UTF16ToUTF8(entry->GetTitleForDisplay());
++    item.url = entry->GetVirtualURL().spec();
++  }
++  return RespondNow(
++      ArgumentList(ranga_private::GetHistory::Results::Create(entries)));
++}
++
++ExtensionFunction::ResponseAction RangaPrivateGoToHistoryFunction::Run() {
++  auto params = ranga_private::GoToHistory::Params::Create(args());
++  EXTENSION_FUNCTION_VALIDATE(params);
++
++  content::WebContents* contents = nullptr;
++  if (!ExtensionTabUtil::GetTabById(params->tab_id, browser_context(),
++                                    /*include_incognito=*/true, &contents) ||
++      !contents) {
++    return RespondNow(Error("No tab with that id."));
++  }
++  content::NavigationController& controller = contents->GetController();
++  if (!controller.CanGoToOffset(params->offset)) {
++    return RespondNow(Error("The tab can't go that far."));
++  }
++  controller.GoToOffset(params->offset);
++  return RespondNow(NoArguments());
++}
++
+ ExtensionFunction::ResponseAction RangaPrivateClearContainerFunction::Run() {
+   auto params = ranga_private::ClearContainer::Params::Create(args());
+   EXTENSION_FUNCTION_VALIDATE(params);
