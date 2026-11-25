@@ -3,7 +3,7 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 profile="${RANGA_PROFILE:-$HOME/.local/share/ranga/dev-profile}"
-onepassword="$HOME/.config/chromium/NativeMessagingHosts/com.1password.1password.json"
+onepassword="$HOME/.config/ranga/NativeMessagingHosts/com.1password.1password.json"
 
 if [ -f "$onepassword" ] && [ ! -f "$profile/NativeMessagingHosts/com.1password.1password.json" ]; then
   mkdir -p "$profile/NativeMessagingHosts"

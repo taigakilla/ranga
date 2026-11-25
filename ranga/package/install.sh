@@ -14,12 +14,14 @@ dest="$prefix/$version${build:+-$build}"
 allowed=/etc/1password/custom_allowed_browsers
 as_root=()
 mkdir -p "$prefix" 2>/dev/null && [ -w "$prefix" ] || as_root=(pkexec)
+widevine="$data/ranga/WidevineCdm"
+"$here/ranga-widevine" || echo "Widevine fica pra próxima: sem ele, streaming com DRM não toca" >&2
 "${as_root[@]}" bash -euc '
   if ! pgrep -f "^$2/" >/dev/null; then
     rm -rf "$2.new"
     mkdir -p "$2.new"
     cp -a "$1/app/." "$2.new/"
-    cdm=/opt/google/chrome/WidevineCdm
+    cdm="$5"
     [ -d "$cdm" ] || cdm="$3/current/WidevineCdm"
     [ -d "$cdm" ] && cp -aL "$cdm" "$2.new/WidevineCdm"
     rm -rf "$2"
@@ -37,7 +39,7 @@ mkdir -p "$prefix" 2>/dev/null && [ -w "$prefix" ] || as_root=(pkexec)
     echo ranga >> "$4"
     chmod 755 "$4"
   fi
-' _ "$here" "$dest" "$prefix" "$allowed"
+' _ "$here" "$dest" "$prefix" "$allowed" "$widevine"
 
 mkdir -p "$bindir"
 install -m 755 "$here/ranga-update" "$bindir/ranga-update"
@@ -90,8 +92,22 @@ cat > "$profile/NativeMessagingHosts/ranga.theme.json" <<JSON
   "allowed_origins": ["chrome-extension://hncljkmljckjojdjincglklbdihcaeko/"]
 }
 JSON
-onepassword="$config/chromium/NativeMessagingHosts/com.1password.1password.json"
-[ -f "$onepassword" ] && cp "$onepassword" "$profile/NativeMessagingHosts/"
+[ -x /opt/1Password/1Password-BrowserSupport ] && cat > "$profile/NativeMessagingHosts/com.1password.1password.json" <<JSON
+{
+  "name": "com.1password.1password",
+  "description": "1Password BrowserSupport",
+  "path": "/opt/1Password/1Password-BrowserSupport",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://hjlinigoblmkhjejkmbegnoaljkphmgo/",
+    "chrome-extension://bkpbhnjcbehoklfkljkkbbmipaphipgl/",
+    "chrome-extension://gejiddohjgogedgjnonbofjigllpkmbf/",
+    "chrome-extension://khgocmkkpikpnmmkgmdnfckapcdkgfaf/",
+    "chrome-extension://aeblfdkhhhdcdjpifhhbdiojplfjncoa/",
+    "chrome-extension://dppgmdbiimibapkepcbdbmkaabgiofem/"
+  ]
+}
+JSON
 
 hooks="$config/ciel/hooks/theme-set.d"
 if [ -d "$config/ciel" ]; then

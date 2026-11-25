@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.2 — 25/11/2026
+- **HBO Max e Prime Video tocando sem o Chrome**: a instalação só copiava o Widevine do Chrome ou da versão anterior. Sem o Chrome (no PC, por exemplo), o Ranga ficava sem DRM, e os streamings mostravam "Sistema DRM não compatível". Agora o `ranga-widevine` baixa o Widevine do servidor de componentes do Google pra `~/.local/share/ranga/WidevineCdm`, conferindo o sha256 e só baixando de novo quando sai versão nova, e a instalação copia ele. Sem internet, fica o da versão anterior.
+- **Ranga independente do Chrome e do Chromium**: o arquivo que liga o Ranga ao app do 1Password era copiado de `~/.config/chromium`. Agora a instalação escreve ele direto quando o 1Password está instalado, e o Widevine também não vem mais do Chrome. Nada da instalação depende de outro navegador.
+
 ## 0.6.1 — 19/11/2026
 - **Histórico no Voltar e no Avançar**: botão direito no Voltar ou no Avançar da barra lista as páginas daquela aba (as 12 mais perto, com o ícone do site) e um clique vai direto pra ela. No fim, "Mostrar histórico completo".
 - **Barra recolhida abre mais fácil**: a área perto da borda que abre a barra passou de 6 px pra 16 px, e a espera caiu de meio segundo pra um quarto de segundo. Passar pela borda a caminho de outro programa continua sem abrir.
